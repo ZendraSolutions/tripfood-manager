@@ -1,12 +1,51 @@
 /**
- * ShoppingListPage - Final shopping list with assignments
+ * ShoppingListPage - Final shopping list with assignments and CSV export
  */
-import type { FC } from 'react';
+import { useCallback, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
 import { Card, Button, Loading, EmptyState, ErrorDisplay } from '../../components/common';
-import { useParticipants, useProducts } from '../../hooks';
+import { useParticipants, useProducts, type Product } from '../../hooks';
 import styles from './ShoppingListPage.module.css';
+
+/**
+ * Generates CSV content from products data
+ */
+function generateCSVContent(products: Product[], categoryLabels: Record<string, string>): string {
+  const headers = ['Producto', 'Categoria', 'Cantidad', 'Unidad', 'Precio Unitario', 'Precio Total', 'Estado', 'Notas'];
+  const rows = products.map((product) => [
+    product.name,
+    categoryLabels[product.category] || product.category,
+    product.quantity.toString(),
+    product.unit,
+    product.estimatedPrice ? product.estimatedPrice.toFixed(2) : '',
+    product.estimatedPrice ? (product.estimatedPrice * product.quantity).toFixed(2) : '',
+    product.isPurchased ? 'Comprado' : 'Pendiente',
+    product.notes || '',
+  ]);
+
+  const csvContent = [
+    headers.join(';'),
+    ...rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(';')),
+  ].join('\n');
+
+  return csvContent;
+}
+
+/**
+ * Downloads content as a file
+ */
+function downloadFile(content: string, filename: string, mimeType: string): void {
+  const blob = new Blob(['\uFEFF' + content], { type: mimeType }); // BOM for Excel
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 export const ShoppingListPage: FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
@@ -34,6 +73,16 @@ export const ShoppingListPage: FC = () => {
   };
 
   const categoryOrder = ['bebida', 'comida', 'snack', 'otro'];
+
+  /**
+   * Handle CSV export
+   */
+  const handleExportCSV = useCallback(() => {
+    const csvContent = generateCSVContent(products, categoryLabels);
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `lista-compras-${date}.csv`;
+    downloadFile(csvContent, filename, 'text/csv;charset=utf-8');
+  }, [products]);
 
   // Calculate totals
   const purchasedCount = products.filter((p) => p.isPurchased).length;
@@ -104,11 +153,15 @@ export const ShoppingListPage: FC = () => {
             </p>
           </div>
           <div className={styles.headerActions}>
-            <Button variant="secondary">
+            <Button
+              variant="secondary"
+              onClick={handleExportCSV}
+              aria-label="Exportar lista de compras como CSV"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
               </svg>
-              Exportar
+              Exportar CSV
             </Button>
           </div>
         </div>

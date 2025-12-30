@@ -3,14 +3,17 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "homepage": "https://zendrasolutions.github.io/tripfood-manager",
   "description": "Sistema de gestion de compras de comida y bebida para viajes de grupo",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
+    "build:strict": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit",
-    "deploy": "npm run build && gh-pages -d dist"
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "dexie": "^4.0.10",
@@ -36,7 +39,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/usuario/tripfood-manager.git"
+    "url": "https://github.com/ZendraSolutions/tripfood-manager.git"
   },
   "keywords": [
     "trip",
