@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(npx tsc:*)",
+      "Bash(if [ -d \"c:\\\\Users\\\\95vaz\\\\Desktop\\\\carpetas que me quedo\\\\PROYECTOS IA\\\\APP GESTION BEBIDA Y COMIDA VIAJE\\\\node_modules\" ])",
+      "Bash(then echo \"node_modules EXISTS\")",
+      "Bash(else echo \"node_modules NOT FOUND\")",
+      "Bash(fi)",
+      "Bash(if [ -d \"c:\\\\Users\\\\95vaz\\\\Desktop\\\\carpetas que me quedo\\\\PROYECTOS IA\\\\APP GESTION BEBIDA Y COMIDA VIAJE\\\\.git\" ])",
+      "Bash(then echo \"Git repo EXISTS\")",
+      "Bash(else echo \"Git repo NOT FOUND\")",
+      "Bash(gh auth:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run build:*)"
+    ]
+  }
+}
