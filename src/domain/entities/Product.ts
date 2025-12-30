@@ -34,9 +34,9 @@ export interface IProductCreateDTO {
   /** Unit of measurement */
   readonly unit: ProductUnit;
   /** Default quantity per person (optional) */
-  readonly defaultQuantityPerPerson?: number;
+  readonly defaultQuantityPerPerson?: number | undefined;
   /** Optional notes about the product */
-  readonly notes?: string;
+  readonly notes?: string | undefined;
 }
 
 /**
@@ -72,13 +72,13 @@ export interface IProductProps {
   /** Unit of measurement */
   readonly unit: ProductUnit;
   /** Default quantity per person */
-  readonly defaultQuantityPerPerson?: number;
+  readonly defaultQuantityPerPerson?: number | undefined;
   /** Optional notes about the product */
-  readonly notes?: string;
+  readonly notes?: string | undefined;
   /** Timestamp when the product was created */
   readonly createdAt: Date;
   /** Timestamp when the product was last updated */
-  readonly updatedAt?: Date;
+  readonly updatedAt?: Date | undefined;
 }
 
 /**
@@ -168,13 +168,13 @@ export class Product implements IProductProps {
    * Default quantity per person.
    * @readonly
    */
-  public readonly defaultQuantityPerPerson?: number;
+  public readonly defaultQuantityPerPerson?: number | undefined;
 
   /**
    * Optional notes about the product.
    * @readonly
    */
-  public readonly notes?: string;
+  public readonly notes?: string | undefined;
 
   /**
    * Timestamp when the product was created.
@@ -186,7 +186,7 @@ export class Product implements IProductProps {
    * Timestamp when the product was last updated.
    * @readonly
    */
-  public readonly updatedAt?: Date;
+  public readonly updatedAt?: Date | undefined;
 
   /**
    * Private constructor to enforce factory method usage.

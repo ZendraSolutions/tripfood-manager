@@ -75,7 +75,7 @@ export class DomainError extends Error {
    * Can contain any relevant information for debugging.
    * @readonly
    */
-  public readonly details?: Record<string, unknown>;
+  public readonly details?: Record<string, unknown> | undefined;
 
   /**
    * Timestamp when the error was created.

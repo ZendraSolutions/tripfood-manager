@@ -47,12 +47,12 @@ export interface ParticipantResponseDTO {
   /**
    * Email address of the participant.
    */
-  readonly email?: string;
+  readonly email?: string | undefined;
 
   /**
    * Phone number of the participant.
    */
-  readonly phone?: string;
+  readonly phone?: string | undefined;
 
   /**
    * Dietary restrictions or preferences.
@@ -62,7 +62,7 @@ export interface ParticipantResponseDTO {
   /**
    * Notes about the participant.
    */
-  readonly notes?: string;
+  readonly notes?: string | undefined;
 
   /**
    * Timestamp when the participant was created.

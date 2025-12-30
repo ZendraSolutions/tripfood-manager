@@ -15,7 +15,6 @@ import type { ITripRepository } from '@domain/interfaces/repositories/ITripRepos
 import type { IParticipantRepository } from '@domain/interfaces/repositories/IParticipantRepository';
 import type { Product } from '@domain/entities/Product';
 import { NotFoundError } from '@domain/errors';
-import type { ProductCategory } from '@domain/types';
 import type {
   ShoppingListDTO,
   ShoppingListItemDTO,
@@ -23,6 +22,7 @@ import type {
   QuantityByDateDTO,
   GenerateShoppingListOptionsDTO,
 } from '../dtos/shopping';
+import type { ProductCategory, ProductUnit } from '../dtos/product';
 
 /**
  * Shopping list item (legacy compatibility).
@@ -165,7 +165,8 @@ export class ShoppingService {
     }>();
 
     for (const consumption of consumptions) {
-      const dateKey = consumption.date.toISOString().split('T')[0];
+      const dateIso = consumption.date.toISOString();
+      const dateKey = dateIso.split('T')[0] ?? dateIso.substring(0, 10);
 
       if (!productQuantities.has(consumption.productId)) {
         productQuantities.set(consumption.productId, {
@@ -179,9 +180,11 @@ export class ShoppingService {
 
       if (!entry.byDate.has(dateKey)) {
         // Count participants available on this date
-        const dateAvailabilities = availabilities.filter(
-          (a) => a.date.toISOString().split('T')[0] === dateKey
-        );
+        const dateAvailabilities = availabilities.filter((a) => {
+          const aDateIso = a.date.toISOString();
+          const aDateKey = aDateIso.split('T')[0] ?? aDateIso.substring(0, 10);
+          return aDateKey === dateKey;
+        });
         entry.byDate.set(dateKey, {
           quantity: 0,
           participantCount: dateAvailabilities.length,
@@ -203,7 +206,12 @@ export class ShoppingService {
 
       // Apply filters
       if (options?.essentialOnly && !product.defaultQuantityPerPerson) continue;
-      if (options?.categories && !options.categories.includes(product.category as ProductCategory)) continue;
+
+      // Check category filter - compare as strings to avoid type mismatch
+      if (options?.categories) {
+        const categoryStrings = options.categories.map((c) => String(c));
+        if (!categoryStrings.includes(String(product.category))) continue;
+      }
 
       // Apply quantity multiplier
       const multiplier = options?.quantityMultiplier ?? 1.0;
@@ -219,46 +227,54 @@ export class ShoppingService {
         });
       }
 
-      items.push({
+      // Create item - handle optional notes properly
+      const item: ShoppingListItemDTO = {
         productId: product.id,
         productName: product.name,
-        category: product.category as ProductCategory,
+        category: product.category as unknown as ProductCategory,
         totalQuantity,
-        unit: product.unit,
+        unit: product.unit as unknown as ProductUnit,
         isEssential: !!product.defaultQuantityPerPerson,
-        notes: product.notes,
         byDate: byDate.sort((a, b) => a.date.getTime() - b.date.getTime()),
-      });
+      };
+
+      // Add optional notes if present
+      if (product.notes !== undefined) {
+        (item as { notes?: string }).notes = product.notes;
+      }
+
+      items.push(item);
     }
 
     // Sort items by category and name
     items.sort((a, b) => {
       if (a.category !== b.category) {
-        return a.category.localeCompare(b.category);
+        return String(a.category).localeCompare(String(b.category));
       }
       return a.productName.localeCompare(b.productName);
     });
 
     // Group by category
     const byCategory: ShoppingListByCategoryDTO[] = [];
-    const categoryMap = new Map<ProductCategory, ShoppingListItemDTO[]>();
+    const categoryMap = new Map<string, ShoppingListItemDTO[]>();
 
     for (const item of items) {
-      if (!categoryMap.has(item.category)) {
-        categoryMap.set(item.category, []);
+      const categoryKey = String(item.category);
+      if (!categoryMap.has(categoryKey)) {
+        categoryMap.set(categoryKey, []);
       }
-      categoryMap.get(item.category)!.push(item);
+      categoryMap.get(categoryKey)!.push(item);
     }
 
-    for (const [category, categoryItems] of categoryMap) {
+    for (const [categoryKey, categoryItems] of categoryMap) {
       const categoryTotalCost = categoryItems.reduce(
         (sum, item) => sum + (item.totalEstimatedCost ?? 0),
         0
       );
 
       byCategory.push({
-        category,
-        categoryDisplayName: this.getCategoryDisplayName(category),
+        category: categoryKey as unknown as ProductCategory,
+        categoryDisplayName: this.getCategoryDisplayName(categoryKey),
         items: categoryItems,
         categoryTotalCost,
         itemCount: categoryItems.length,
@@ -576,17 +592,371 @@ export class ShoppingService {
   }
 
   /**
+   * Gets a complete shopping list for a trip.
+   * Alias for generate() method for API consistency.
+   *
+   * @param tripId - The trip's unique identifier
+   * @returns Promise resolving to the complete shopping list DTO
+   * @throws {NotFoundError} If the trip is not found
+   *
+   * @example
+   * ```typescript
+   * const shoppingList = await shoppingService.getShoppingList('trip-123');
+   * console.log(`Total items: ${shoppingList.totalItems}`);
+   * ```
+   */
+  public async getShoppingList(tripId: string): Promise<ShoppingListDTO> {
+    return this.generate(tripId);
+  }
+
+  /**
+   * Exports the shopping list to CSV format.
+   *
+   * @description
+   * Generates a CSV string containing the shopping list with columns:
+   * - Category
+   * - Product Name
+   * - Quantity
+   * - Unit
+   * - Notes (optional)
+   * - Daily breakdown (optional)
+   *
+   * @param tripId - The trip's unique identifier
+   * @param options - Export configuration options
+   * @returns Promise resolving to CSV string
+   * @throws {NotFoundError} If trip is not found
+   *
+   * @example
+   * ```typescript
+   * const csv = await shoppingService.exportToCSV('trip-123', {
+   *   includeDailyBreakdown: true,
+   *   includeNotes: true,
+   *   sortByCategory: true,
+   * });
+   *
+   * // Save to file
+   * fs.writeFileSync('shopping-list.csv', csv);
+   * ```
+   */
+  public async exportToCSV(
+    tripId: string,
+    options?: {
+      includeDailyBreakdown?: boolean;
+      includeNotes?: boolean;
+      sortByCategory?: boolean;
+      includeHeader?: boolean;
+    }
+  ): Promise<string> {
+    const shoppingList = await this.generate(tripId);
+
+    const includeNotes = options?.includeNotes ?? true;
+    const includeDailyBreakdown = options?.includeDailyBreakdown ?? false;
+    const sortByCategory = options?.sortByCategory ?? true;
+    const includeHeader = options?.includeHeader ?? true;
+
+    const lines: string[] = [];
+
+    // Build header row
+    if (includeHeader) {
+      const headers = ['Categoria', 'Producto', 'Cantidad', 'Unidad'];
+      if (includeNotes) {
+        headers.push('Notas');
+      }
+      if (includeDailyBreakdown) {
+        const dates = this.extractUniqueDates(shoppingList.items);
+        for (const date of dates) {
+          headers.push(this.formatDateForCSV(date));
+        }
+      }
+      lines.push(this.escapeCSVRow(headers));
+    }
+
+    // Sort items
+    let sortedItems = [...shoppingList.items];
+    if (sortByCategory) {
+      sortedItems.sort((a, b) => {
+        if (a.category !== b.category) {
+          return String(a.category).localeCompare(String(b.category));
+        }
+        return a.productName.localeCompare(b.productName);
+      });
+    }
+
+    // Build data rows
+    for (const item of sortedItems) {
+      const categoryName = this.getCategoryDisplayName(item.category);
+      const row: string[] = [
+        categoryName,
+        item.productName,
+        item.totalQuantity.toString(),
+        String(item.unit),
+      ];
+
+      if (includeNotes) {
+        row.push(item.notes || '');
+      }
+
+      if (includeDailyBreakdown) {
+        const dates = this.extractUniqueDates(shoppingList.items);
+        for (const date of dates) {
+          const dateData = item.byDate.find(
+            (d) => this.normalizeDate(d.date) === this.normalizeDate(date)
+          );
+          row.push(dateData ? dateData.quantity.toString() : '0');
+        }
+      }
+
+      lines.push(this.escapeCSVRow(row));
+    }
+
+    // Add summary section
+    lines.push('');
+    lines.push(this.escapeCSVRow(['--- RESUMEN ---']));
+    lines.push(this.escapeCSVRow(['Viaje', shoppingList.tripName]));
+    lines.push(this.escapeCSVRow(['Fecha inicio', this.formatDateForCSV(shoppingList.startDate)]));
+    lines.push(this.escapeCSVRow(['Fecha fin', this.formatDateForCSV(shoppingList.endDate)]));
+    lines.push(this.escapeCSVRow(['Total dias', shoppingList.totalDays.toString()]));
+    lines.push(this.escapeCSVRow(['Participantes', shoppingList.participantCount.toString()]));
+    lines.push(this.escapeCSVRow(['Total productos', shoppingList.totalItems.toString()]));
+    lines.push(this.escapeCSVRow(['Productos esenciales', shoppingList.essentialItemsCount.toString()]));
+    lines.push(this.escapeCSVRow(['Productos opcionales', shoppingList.optionalItemsCount.toString()]));
+    lines.push(this.escapeCSVRow(['Generado', shoppingList.generatedAt.toISOString()]));
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Exports the shopping list to JSON format.
+   *
+   * @param tripId - The trip's unique identifier
+   * @param options - Export configuration options
+   * @returns Promise resolving to JSON string
+   * @throws {NotFoundError} If trip is not found
+   *
+   * @example
+   * ```typescript
+   * const json = await shoppingService.exportToJSON('trip-123');
+   * fs.writeFileSync('shopping-list.json', json);
+   * ```
+   */
+  public async exportToJSON(
+    tripId: string,
+    options?: {
+      prettyPrint?: boolean;
+    }
+  ): Promise<string> {
+    const shoppingList = await this.generate(tripId);
+    const indent = options?.prettyPrint !== false ? 2 : 0;
+    return JSON.stringify(shoppingList, null, indent);
+  }
+
+  /**
+   * Gets products grouped by category for a trip's shopping list.
+   *
+   * @param tripId - The trip's unique identifier
+   * @returns Promise resolving to array of category groups
+   * @throws {NotFoundError} If trip is not found
+   *
+   * @example
+   * ```typescript
+   * const byCategory = await shoppingService.getShoppingListByCategory('trip-123');
+   * byCategory.forEach(group => {
+   *   console.log(`${group.categoryDisplayName}: ${group.itemCount} items`);
+   * });
+   * ```
+   */
+  public async getShoppingListByCategory(tripId: string): Promise<ShoppingListByCategoryDTO[]> {
+    const shoppingList = await this.generate(tripId, { groupByCategory: true });
+    return [...shoppingList.byCategory];
+  }
+
+  /**
+   * Gets products that are running low based on consumption vs estimates.
+   *
+   * @param tripId - The trip's unique identifier
+   * @param thresholdPercentage - Percentage threshold for low stock (default: 20)
+   * @returns Promise resolving to array of low stock products
+   *
+   * @example
+   * ```typescript
+   * const lowStock = await shoppingService.getLowStockProducts('trip-123', 25);
+   * lowStock.forEach(p => {
+   *   console.log(`${p.productName}: ${p.remainingPercentage}% remaining`);
+   * });
+   * ```
+   */
+  public async getLowStockProducts(
+    tripId: string,
+    thresholdPercentage: number = 20
+  ): Promise<
+    Array<{
+      productId: string;
+      productName: string;
+      remainingPercentage: number;
+      currentQuantity: number;
+      estimatedNeed: number;
+      unit: string;
+    }>
+  > {
+    const variances = await this.getConsumptionVariance(tripId);
+
+    const lowStock = variances
+      .filter((v) => {
+        const remainingPercentage = v.estimated > 0
+          ? ((v.estimated - v.actual) / v.estimated) * 100
+          : 100;
+        return remainingPercentage <= thresholdPercentage;
+      })
+      .map((v) => ({
+        productId: v.productId,
+        productName: v.productName,
+        remainingPercentage: v.estimated > 0
+          ? Math.round(((v.estimated - v.actual) / v.estimated) * 100 * 100) / 100
+          : 100,
+        currentQuantity: Math.max(0, v.estimated - v.actual),
+        estimatedNeed: v.estimated,
+        unit: v.unit,
+      }));
+
+    return lowStock.sort((a, b) => a.remainingPercentage - b.remainingPercentage);
+  }
+
+  /**
+   * Gets a quick summary of the shopping list for dashboard display.
+   *
+   * @param tripId - The trip's unique identifier
+   * @returns Promise resolving to summary data
+   * @throws {NotFoundError} If trip is not found
+   *
+   * @example
+   * ```typescript
+   * const summary = await shoppingService.getShoppingListSummary('trip-123');
+   * console.log(`Total products: ${summary.totalProducts}`);
+   * ```
+   */
+  public async getShoppingListSummary(tripId: string): Promise<{
+    tripId: string;
+    tripName: string;
+    totalProducts: number;
+    essentialProducts: number;
+    optionalProducts: number;
+    totalEstimatedCost: number;
+    categoryCounts: Array<{ category: string; count: number }>;
+    generatedAt: Date;
+  }> {
+    const shoppingList = await this.generate(tripId);
+
+    const categoryCounts = shoppingList.byCategory.map((group) => ({
+      category: group.categoryDisplayName,
+      count: group.itemCount,
+    }));
+
+    return {
+      tripId: shoppingList.tripId,
+      tripName: shoppingList.tripName,
+      totalProducts: shoppingList.totalItems,
+      essentialProducts: shoppingList.essentialItemsCount,
+      optionalProducts: shoppingList.optionalItemsCount,
+      totalEstimatedCost: shoppingList.totalEstimatedCost,
+      categoryCounts,
+      generatedAt: shoppingList.generatedAt,
+    };
+  }
+
+  /**
    * Gets display name for a category.
    *
-   * @param category - The category
+   * @param category - The category (string or enum)
    * @returns The display name
    */
-  private getCategoryDisplayName(category: ProductCategory): string {
+  private getCategoryDisplayName(category: string | ProductCategory): string {
+    const categoryStr = String(category);
     const displayNames: Record<string, string> = {
-      food: 'Food',
-      beverage: 'Beverages',
-      other: 'Other',
+      food: 'Comida',
+      beverage: 'Bebidas',
+      alcohol: 'Alcohol',
+      snack: 'Snacks',
+      other: 'Otros',
+      FOOD: 'Comida',
+      BEVERAGE: 'Bebidas',
+      BEVERAGES: 'Bebidas',
+      ALCOHOL: 'Alcohol',
+      SNACK: 'Snacks',
+      SNACKS: 'Snacks',
+      OTHER: 'Otros',
+      MEAT: 'Carnes',
+      SEAFOOD: 'Mariscos',
+      DAIRY: 'Lacteos',
+      PRODUCE: 'Frutas y Verduras',
+      BAKERY: 'Panaderia',
+      CONDIMENTS: 'Condimentos',
+      FROZEN: 'Congelados',
+      CANNED: 'Enlatados',
+      DRY_GOODS: 'Secos',
     };
-    return displayNames[category] || category;
+    return displayNames[categoryStr] || categoryStr;
+  }
+
+  /**
+   * Extracts unique dates from shopping list items.
+   *
+   * @param items - Array of shopping list items (can be readonly)
+   * @returns Array of unique dates sorted chronologically
+   */
+  private extractUniqueDates(items: ReadonlyArray<ShoppingListItemDTO>): Date[] {
+    const dateSet = new Set<string>();
+
+    for (const item of items) {
+      for (const dateData of item.byDate) {
+        dateSet.add(this.normalizeDate(dateData.date));
+      }
+    }
+
+    return Array.from(dateSet)
+      .map((d) => new Date(d))
+      .sort((a, b) => a.getTime() - b.getTime());
+  }
+
+  /**
+   * Normalizes a date to ISO date string (YYYY-MM-DD).
+   *
+   * @param date - The date to normalize
+   * @returns Normalized date string
+   */
+  private normalizeDate(date: Date): string {
+    const isoString = date.toISOString();
+    const datePart = isoString.split('T')[0];
+    return datePart ?? isoString.substring(0, 10);
+  }
+
+  /**
+   * Formats a date for CSV export (YYYY-MM-DD).
+   *
+   * @param date - The date to format
+   * @returns Formatted date string
+   */
+  private formatDateForCSV(date: Date): string {
+    const isoString = date.toISOString();
+    const datePart = isoString.split('T')[0];
+    return datePart ?? isoString.substring(0, 10);
+  }
+
+  /**
+   * Escapes a CSV row properly, handling special characters.
+   *
+   * @param row - Array of cell values
+   * @returns Properly escaped CSV row string
+   */
+  private escapeCSVRow(row: string[]): string {
+    return row
+      .map((cell) => {
+        const cellStr = String(cell);
+        // If cell contains comma, quote, newline, or semicolon, wrap in quotes
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n') || cellStr.includes(';')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      })
+      .join(',');
   }
 }

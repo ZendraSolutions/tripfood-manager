@@ -12,10 +12,8 @@ import type { Product, IProductCreateDTO, IProductUpdateDTO } from '@domain/enti
 import type { IProductRepository } from '@domain/interfaces/repositories/IProductRepository';
 import type { IConsumptionRepository } from '@domain/interfaces/repositories/IConsumptionRepository';
 import { NotFoundError, ValidationError, DomainError, DomainErrorCode } from '@domain/errors';
-import type { ProductCategory, ProductType, ProductUnit } from '@domain/types';
+import { isProductCategory, isProductType, type ProductCategory, type ProductType, type ProductUnit } from '@domain/types';
 import type {
-  CreateProductDTO,
-  UpdateProductDTO,
   ProductResponseDTO,
   ProductWithConsumptionDTO,
 } from '../dtos/product';
@@ -205,6 +203,9 @@ export class ProductService {
    * ```
    */
   public async getByCategory(category: string): Promise<Product[]> {
+    if (!isProductCategory(category)) {
+      throw new ValidationError(`Invalid product category: ${category}`, 'category', 'enum');
+    }
     return this.productRepository.findByCategory(category);
   }
 
@@ -215,6 +216,9 @@ export class ProductService {
    * @returns Promise resolving to array of products
    */
   public async getProductsByCategory(category: string): Promise<Product[]> {
+    if (!isProductCategory(category)) {
+      throw new ValidationError(`Invalid product category: ${category}`, 'category', 'enum');
+    }
     return this.productRepository.findByCategory(category);
   }
 
@@ -230,6 +234,9 @@ export class ProductService {
    * ```
    */
   public async getByType(type: string): Promise<Product[]> {
+    if (!isProductType(type)) {
+      throw new ValidationError(`Invalid product type: ${type}`, 'type', 'enum');
+    }
     return this.productRepository.findByType(type);
   }
 
@@ -240,6 +247,9 @@ export class ProductService {
    * @returns Promise resolving to array of products
    */
   public async getProductsByType(type: string): Promise<Product[]> {
+    if (!isProductType(type)) {
+      throw new ValidationError(`Invalid product type: ${type}`, 'type', 'enum');
+    }
     return this.productRepository.findByType(type);
   }
 

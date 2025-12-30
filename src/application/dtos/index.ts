@@ -23,7 +23,7 @@ export type {
 } from './participant';
 
 // Product DTOs
-export { ProductCategory, ProductUnit } from './product';
+export type { ProductCategory, ProductType, ProductUnit } from './product';
 export type {
   CreateProductDTO,
   UpdateProductDTO,
@@ -32,7 +32,7 @@ export type {
 } from './product';
 
 // Consumption DTOs
-export { MealType } from './consumption';
+export type { MealType } from './consumption';
 export type {
   CreateConsumptionDTO,
   BulkCreateConsumptionDTO,

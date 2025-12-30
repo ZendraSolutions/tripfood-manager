@@ -214,9 +214,9 @@ export function useModals(): {
     setOpenModals(new Set());
   }, []);
 
-  const currentModal = useMemo(() => {
+  const currentModal = useMemo((): string | null => {
     const modals = Array.from(openModals);
-    return modals.length > 0 ? modals[modals.length - 1] : null;
+    return modals.length > 0 ? (modals[modals.length - 1] ?? null) : null;
   }, [openModals]);
 
   return {

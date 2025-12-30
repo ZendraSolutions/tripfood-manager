@@ -18,8 +18,8 @@ export interface ParticipantProps {
   id: string;
   tripId: string;
   name: string;
-  email?: string;
-  notes?: string;
+  email?: string | undefined;
+  notes?: string | undefined;
   createdAt: Date;
 }
 

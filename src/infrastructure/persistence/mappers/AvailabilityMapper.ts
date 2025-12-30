@@ -10,10 +10,11 @@
 
 import type { Availability } from '@domain/entities/Availability';
 import type { AvailabilityRecord } from '../indexeddb/database';
-import type { MealType } from './ConsumptionMapper';
+import type { MealType } from '@domain/types';
 
 /**
  * Props necesarias para crear una entidad Availability desde el dominio.
+ * Mirrors IAvailabilityProps for compatibility.
  */
 export interface AvailabilityProps {
   id: string;
@@ -21,6 +22,8 @@ export interface AvailabilityProps {
   tripId: string;
   date: Date;
   meals: MealType[];
+  createdAt: Date;
+  updatedAt?: Date | undefined;
 }
 
 /**
@@ -117,6 +120,8 @@ export class AvailabilityMapper {
       tripId: record.tripId,
       date: new Date(record.date),
       meals: AvailabilityMapper.validateMeals(record.meals),
+      createdAt: new Date(),
+      updatedAt: undefined,
     };
   }
 

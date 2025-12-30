@@ -19,7 +19,7 @@ import type { TripRecord } from '../indexeddb/database';
 export interface TripProps {
   id: string;
   name: string;
-  description?: string;
+  description?: string | undefined;
   startDate: Date;
   endDate: Date;
   createdAt: Date;
@@ -79,7 +79,7 @@ export class TripMapper {
       startDate: trip.startDate.toISOString(),
       endDate: trip.endDate.toISOString(),
       createdAt: trip.createdAt.toISOString(),
-      updatedAt: trip.updatedAt.toISOString(),
+      updatedAt: (trip.updatedAt ?? trip.createdAt).toISOString(),
     };
   }
 

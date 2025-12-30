@@ -8,8 +8,8 @@
  * @version 1.0.0
  */
 
-import type { ITripRepository } from '@domain/interfaces/repositories/ITripRepository';
-import type { Trip } from '@domain/entities/Trip';
+import type { ITripRepository, ITripQueryFilters } from '@domain/interfaces/repositories/ITripRepository';
+import type { Trip, ITripUpdateDTO } from '@domain/entities/Trip';
 import { TripFoodDatabase, type TripRecord } from './database';
 import { TripMapper, type TripProps } from '../mappers/TripMapper';
 import { DatabaseError } from '../../errors/DatabaseError';
@@ -278,17 +278,128 @@ export class IndexedDBTripRepository implements ITripRepository {
   }
 
   /**
-   * Actualiza campos específicos de un viaje.
+   * Actualiza un viaje existente.
    *
-   * @param id - ID del viaje a actualizar
-   * @param updates - Objeto con los campos a actualizar
-   * @returns Promise con el Trip actualizado o null si no existe
+   * @param entity - Entidad Trip con los datos actualizados
+   * @returns Promise con el Trip actualizado
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
-  public async update(
-    id: string,
-    updates: Partial<Pick<TripRecord, 'name' | 'description' | 'startDate' | 'endDate'>>
-  ): Promise<Trip | null> {
+  public async update(entity: Trip): Promise<Trip> {
+    try {
+      const record = TripMapper.toRecord(entity);
+      await this.db.trips.put(record);
+      return entity;
+    } catch (error) {
+      throw new DatabaseError(
+        'update',
+        'trips',
+        error instanceof Error ? error : undefined,
+        entity.id
+      );
+    }
+  }
+
+  /**
+   * Elimina múltiples viajes por sus IDs.
+   *
+   * @param ids - Array de IDs a eliminar
+   * @returns Promise que resuelve cuando se completa la eliminación
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async deleteMany(ids: string[]): Promise<void> {
+    try {
+      await this.db.trips.bulkDelete(ids);
+    } catch (error) {
+      throw new DatabaseError('delete', 'trips', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Guarda múltiples viajes en una sola transacción.
+   *
+   * @param trips - Array de entidades Trip a guardar
+   * @returns Promise con el array de Trip guardados
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async saveMany(trips: Trip[]): Promise<Trip[]> {
+    try {
+      const records = TripMapper.toRecordList(trips);
+      await this.db.trips.bulkPut(records);
+      return trips;
+    } catch (error) {
+      throw new DatabaseError('create', 'trips', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Encuentra viajes actualmente activos (hoy está dentro del rango de fechas).
+   *
+   * @returns Promise con array de viajes activos
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findActive(): Promise<Trip[]> {
+    try {
+      const today = new Date().toISOString();
+      const records = await this.db.trips
+        .filter((trip) => trip.startDate <= today && trip.endDate >= today)
+        .toArray();
+
+      const propsList = TripMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.tripFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'trips', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Encuentra viajes que aún no han comenzado.
+   *
+   * @returns Promise con array de viajes futuros
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findUpcoming(): Promise<Trip[]> {
+    try {
+      const today = new Date().toISOString();
+      const records = await this.db.trips
+        .filter((trip) => trip.startDate > today)
+        .toArray();
+
+      const propsList = TripMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.tripFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'trips', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Encuentra viajes que ya terminaron.
+   *
+   * @returns Promise con array de viajes pasados
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findPast(): Promise<Trip[]> {
+    try {
+      const today = new Date().toISOString();
+      const records = await this.db.trips
+        .filter((trip) => trip.endDate < today)
+        .toArray();
+
+      const propsList = TripMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.tripFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'trips', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Actualiza parcialmente un viaje con los campos proporcionados.
+   *
+   * @param id - ID del viaje a actualizar
+   * @param updates - Campos a actualizar
+   * @returns Promise con el viaje actualizado o null si no existe
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async partialUpdate(id: string, updates: ITripUpdateDTO): Promise<Trip | null> {
     try {
       const existingRecord = await this.db.trips.get(id);
 
@@ -298,7 +409,10 @@ export class IndexedDBTripRepository implements ITripRepository {
 
       const updatedRecord: TripRecord = {
         ...existingRecord,
-        ...updates,
+        ...(updates.name !== undefined && { name: updates.name }),
+        ...(updates.description !== undefined && { description: updates.description === null ? undefined : updates.description }),
+        ...(updates.startDate !== undefined && { startDate: updates.startDate.toISOString() }),
+        ...(updates.endDate !== undefined && { endDate: updates.endDate.toISOString() }),
         updatedAt: new Date().toISOString(),
       };
 
@@ -317,17 +431,79 @@ export class IndexedDBTripRepository implements ITripRepository {
   }
 
   /**
-   * Elimina múltiples viajes por sus IDs.
+   * Verifica si existe un viaje con el nombre dado.
    *
-   * @param ids - Array de IDs a eliminar
-   * @returns Promise que resuelve cuando se completa la eliminación
+   * @param name - Nombre a verificar
+   * @param excludeId - ID opcional a excluir de la búsqueda
+   * @returns Promise que resuelve a true si existe
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
-  public async deleteMany(ids: string[]): Promise<void> {
+  public async existsByName(name: string, excludeId?: string): Promise<boolean> {
     try {
-      await this.db.trips.bulkDelete(ids);
+      const normalizedName = name.toLowerCase().trim();
+      const record = await this.db.trips
+        .filter((trip) => {
+          if (excludeId && trip.id === excludeId) {
+            return false;
+          }
+          return trip.name.toLowerCase().trim() === normalizedName;
+        })
+        .first();
+
+      return record !== undefined;
     } catch (error) {
-      throw new DatabaseError('delete', 'trips', error instanceof Error ? error : undefined);
+      throw new DatabaseError('find', 'trips', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Encuentra viajes usando filtros complejos.
+   *
+   * @param filters - Criterios de filtrado
+   * @returns Promise con array de viajes que coinciden
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findWithFilters(filters: ITripQueryFilters): Promise<Trip[]> {
+    try {
+      let records = await this.db.trips.toArray();
+      const today = new Date().toISOString();
+
+      // Filtrar por nombre
+      if (filters.name) {
+        const searchTerm = filters.name.toLowerCase();
+        records = records.filter((trip) => trip.name.toLowerCase().includes(searchTerm));
+      }
+
+      // Filtrar por rango de fechas
+      if (filters.startDate) {
+        const startStr = filters.startDate.toISOString();
+        records = records.filter((trip) => trip.endDate >= startStr);
+      }
+
+      if (filters.endDate) {
+        const endStr = filters.endDate.toISOString();
+        records = records.filter((trip) => trip.startDate <= endStr);
+      }
+
+      // Filtrar por estado
+      if (filters.status && filters.status !== 'all') {
+        switch (filters.status) {
+          case 'active':
+            records = records.filter((trip) => trip.startDate <= today && trip.endDate >= today);
+            break;
+          case 'upcoming':
+            records = records.filter((trip) => trip.startDate > today);
+            break;
+          case 'past':
+            records = records.filter((trip) => trip.endDate < today);
+            break;
+        }
+      }
+
+      const propsList = TripMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.tripFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'trips', error instanceof Error ? error : undefined);
     }
   }
 }

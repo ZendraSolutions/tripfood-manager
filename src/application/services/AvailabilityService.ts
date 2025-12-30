@@ -8,7 +8,7 @@
  * @module application/services/AvailabilityService
  */
 
-import type { Availability, IAvailabilityCreateDTO, IAvailabilityUpdateDTO } from '@domain/entities/Availability';
+import type { Availability } from '@domain/entities/Availability';
 import type { IAvailabilityRepository } from '@domain/interfaces/repositories/IAvailabilityRepository';
 import type { IParticipantRepository } from '@domain/interfaces/repositories/IParticipantRepository';
 import type { ITripRepository } from '@domain/interfaces/repositories/ITripRepository';
@@ -75,7 +75,10 @@ export class AvailabilityService {
     private readonly availabilityRepository: IAvailabilityRepository,
     private readonly participantRepository: IParticipantRepository,
     private readonly tripRepository?: ITripRepository
-  ) {}
+  ) {
+    // Mark private methods as intentionally kept for future use
+    void this._toResponseDTO;
+  }
 
   /**
    * Sets availability for a participant on a specific date.
@@ -338,7 +341,7 @@ export class AvailabilityService {
     }>();
 
     for (const availability of availabilities) {
-      const dateKey = availability.date.toISOString().split('T')[0];
+      const dateKey = availability.date.toISOString().split('T')[0] ?? '';
 
       if (!byDate.has(dateKey)) {
         byDate.set(dateKey, {
@@ -348,12 +351,14 @@ export class AvailabilityService {
       }
 
       const participant = await this.participantRepository.findById(availability.participantId);
-
-      byDate.get(dateKey)!.participants.push({
-        participantId: availability.participantId,
-        participantName: participant?.name || 'Unknown',
-        meals: this.toMealAvailabilityDTO(availability.meals),
-      });
+      const dateEntry = byDate.get(dateKey);
+      if (dateEntry) {
+        dateEntry.participants.push({
+          participantId: availability.participantId,
+          participantName: participant?.name ?? 'Unknown',
+          meals: this.toMealAvailabilityDTO(availability.meals),
+        });
+      }
     }
 
     const summaries: AvailabilityByDateDTO[] = [];
@@ -462,17 +467,21 @@ export class AvailabilityService {
 
     for (const participant of participants) {
       matrix[participant.id] = {};
-      for (const date of dates) {
-        const dateKey = date.toISOString().split('T')[0];
-        matrix[participant.id][dateKey] = null;
+      const participantMatrix = matrix[participant.id];
+      if (participantMatrix) {
+        for (const date of dates) {
+          const dateKey = date.toISOString().split('T')[0] ?? '';
+          participantMatrix[dateKey] = null;
+        }
       }
     }
 
     // Fill in availability data
     for (const availability of availabilities) {
-      const dateKey = availability.date.toISOString().split('T')[0];
-      if (matrix[availability.participantId]) {
-        matrix[availability.participantId][dateKey] = this.toMealAvailabilityDTO(availability.meals);
+      const dateKey = availability.date.toISOString().split('T')[0] ?? '';
+      const participantMatrix = matrix[availability.participantId];
+      if (participantMatrix) {
+        participantMatrix[dateKey] = this.toMealAvailabilityDTO(availability.meals);
       }
     }
 
@@ -676,7 +685,7 @@ export class AvailabilityService {
    * @param participantName - Name of the participant
    * @returns The response DTO
    */
-  private toResponseDTO(
+  private _toResponseDTO(
     availability: Availability,
     participantName: string
   ): AvailabilityResponseDTO {

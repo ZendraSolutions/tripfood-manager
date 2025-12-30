@@ -41,13 +41,13 @@ export class NotFoundError extends DomainError {
    * The identifier used to search for the entity.
    * @readonly
    */
-  public readonly entityId?: string;
+  public readonly entityId?: string | undefined;
 
   /**
    * The search criteria used when querying (for multi-criteria searches).
    * @readonly
    */
-  public readonly searchCriteria?: Record<string, unknown>;
+  public readonly searchCriteria?: Record<string, unknown> | undefined;
 
   /**
    * Creates a new NotFoundError instance.
@@ -124,6 +124,24 @@ export class NotFoundError extends DomainError {
    */
   public static forEntity(entityType: string, entityId: string): NotFoundError {
     return new NotFoundError(entityType, entityId);
+  }
+
+  /**
+   * Creates a NotFoundError for an entity with a specific ID.
+   * Alias for forEntity method.
+   *
+   * @param entityType - The type of entity
+   * @param entityId - The entity identifier
+   * @returns A new NotFoundError instance
+   *
+   * @example
+   * ```typescript
+   * throw NotFoundError.withId('Trip', 'trip-123');
+   * // Message: "Trip with ID 'trip-123' was not found"
+   * ```
+   */
+  public static withId(entityType: string, entityId: string): NotFoundError {
+    return NotFoundError.forEntity(entityType, entityId);
   }
 
   /**

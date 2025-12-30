@@ -9,25 +9,29 @@
  */
 
 import type { Product } from '@domain/entities/Product';
+import type { ProductCategory, ProductType as DomainProductType, ProductUnit } from '@domain/types';
 import type { ProductRecord } from '../indexeddb/database';
 
 /**
- * Tipo de producto: comida o bebida.
+ * Tipo de producto legacy: comida o bebida.
+ * @deprecated Use domain ProductType instead
  */
 export type ProductType = 'food' | 'beverage';
 
 /**
  * Props necesarias para crear una entidad Product desde el dominio.
+ * Mirrors IProductProps from domain for compatibility.
  */
 export interface ProductProps {
   id: string;
   name: string;
-  category: string;
-  type: ProductType;
-  unit: string;
-  defaultQuantityPerPerson?: number;
-  notes?: string;
+  category: ProductCategory;
+  type: DomainProductType;
+  unit: ProductUnit;
+  defaultQuantityPerPerson?: number | undefined;
+  notes?: string | undefined;
   createdAt: Date;
+  updatedAt?: Date | undefined;
 }
 
 /**
@@ -52,15 +56,6 @@ export class ProductMapper {
     // No instanciar
   }
 
-  /**
-   * Valida que el tipo de producto sea válido.
-   *
-   * @param type - Tipo a validar
-   * @returns true si es un tipo válido
-   */
-  private static isValidProductType(type: string): type is ProductType {
-    return type === 'food' || type === 'beverage';
-  }
 
   /**
    * Convierte una entidad de dominio Product a un registro de persistencia.
@@ -86,22 +81,18 @@ export class ProductMapper {
    *
    * @param record - Registro de persistencia ProductRecord
    * @returns Props para crear una entidad Product
-   * @throws Error si el tipo de producto no es válido
    */
   public static toDomainProps(record: ProductRecord): ProductProps {
-    if (!ProductMapper.isValidProductType(record.type)) {
-      throw new Error(`Invalid product type: ${record.type}. Expected 'food' or 'beverage'.`);
-    }
-
     return {
       id: record.id,
       name: record.name,
-      category: record.category,
-      type: record.type,
-      unit: record.unit,
+      category: record.category as ProductCategory,
+      type: record.type as DomainProductType,
+      unit: record.unit as ProductUnit,
       defaultQuantityPerPerson: record.defaultQuantityPerPerson,
       notes: record.notes,
       createdAt: new Date(record.createdAt),
+      updatedAt: undefined,
     };
   }
 

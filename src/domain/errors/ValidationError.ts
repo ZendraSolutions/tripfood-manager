@@ -49,13 +49,13 @@ export class ValidationError extends DomainError {
    * The field that failed validation (for single-field errors).
    * @readonly
    */
-  public readonly field?: string;
+  public readonly field?: string | undefined;
 
   /**
    * The validation rule that was violated.
    * @readonly
    */
-  public readonly rule?: string;
+  public readonly rule?: string | undefined;
 
   /**
    * Array of all validation failures (for multi-field validation).
@@ -135,7 +135,7 @@ export class ValidationError extends DomainError {
     }
 
     if (failures.length === 1) {
-      const failure = failures[0];
+      const failure = failures[0]!;
       return new ValidationError(
         failure.message,
         failure.field,

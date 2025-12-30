@@ -203,7 +203,7 @@ export interface ITimestamps {
   /** When the entity was created */
   readonly createdAt: Date;
   /** When the entity was last updated (optional) */
-  readonly updatedAt?: Date;
+  readonly updatedAt?: Date | undefined;
 }
 
 /**
@@ -347,7 +347,7 @@ export function normalizeToEndOfDay(date: Date): Date {
  * @returns ISO date string
  */
 export function toISODateString(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0] ?? '';
 }
 
 /**

@@ -6,7 +6,7 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import { useServices } from '../context/ServiceContext';
-import type { ShoppingList, ShoppingListItem, ProductConsumptionSummary } from '@application/services/ShoppingService';
+import type { ShoppingList, ProductConsumptionSummary, ShoppingListItem } from '@application/services/ShoppingService';
 import { CSVExporter, type CSVColumn, type CSVExportResult } from '@infrastructure/export/CSVExporter';
 
 /**
@@ -294,5 +294,6 @@ export function useShoppingList(tripId: string): UseShoppingListReturn {
 }
 
 // Re-export types for convenience
-export type { ShoppingList, ShoppingListItem, ProductConsumptionSummary } from '@application/services/ShoppingService';
+export type { ShoppingList, ProductConsumptionSummary } from '@application/services/ShoppingService';
+export type { ShoppingListItem };
 export type { CSVExportResult } from '@infrastructure/export/CSVExporter';

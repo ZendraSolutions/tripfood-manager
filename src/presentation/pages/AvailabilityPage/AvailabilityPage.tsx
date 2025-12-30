@@ -17,7 +17,7 @@ interface AvailabilityMatrix {
 export const AvailabilityPage: FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
   const { participants, isLoading: participantsLoading, error: participantsError } = useParticipants(tripId || '');
-  const { products, isLoading: productsLoading, error: productsError } = useProducts(tripId || '');
+  const { products, isLoading: productsLoading, error: productsError } = useProducts();
 
   const [availability, setAvailability] = useState<AvailabilityMatrix>({});
 
@@ -28,10 +28,11 @@ export const AvailabilityPage: FC = () => {
   useEffect(() => {
     const initialMatrix: AvailabilityMatrix = {};
     participants.forEach((p) => {
-      initialMatrix[p.id] = {};
+      const participantProducts: { [productId: string]: boolean } = {};
       products.forEach((prod) => {
-        initialMatrix[p.id][prod.id] = false;
+        participantProducts[prod.id] = false;
       });
+      initialMatrix[p.id] = participantProducts;
     });
     setAvailability(initialMatrix);
   }, [participants, products]);
@@ -55,7 +56,8 @@ export const AvailabilityPage: FC = () => {
     return Object.values(availability[participantId] || {}).filter(Boolean).length;
   };
 
-  const activeParticipants = participants.filter((p) => p.isActive);
+  // All participants are considered active (no isActive property in domain)
+  const activeParticipants = participants;
 
   if (isLoading) {
     return (
@@ -70,7 +72,7 @@ export const AvailabilityPage: FC = () => {
       <MainLayout showSidebar tripName="Viaje">
         <ErrorDisplay
           title="Error al cargar datos"
-          message={error}
+          message={error.message}
         />
       </MainLayout>
     );
@@ -87,10 +89,10 @@ export const AvailabilityPage: FC = () => {
             </p>
           </div>
           <EmptyState
-            title={activeParticipants.length === 0 ? 'No hay participantes activos' : 'No hay productos'}
+            title={activeParticipants.length === 0 ? 'No hay participantes' : 'No hay productos'}
             description={
               activeParticipants.length === 0
-                ? 'Anade participantes activos al viaje para crear la matriz de disponibilidad'
+                ? 'Anade participantes al viaje para crear la matriz de disponibilidad'
                 : 'Anade productos al catalogo para crear la matriz de disponibilidad'
             }
             icon={
@@ -170,7 +172,7 @@ export const AvailabilityPage: FC = () => {
                     <td className={styles.productCell}>
                       <span className={styles.productName}>{product.name}</span>
                       <span className={styles.productUnit}>
-                        {product.quantity} {product.unit}
+                        {product.unit}
                       </span>
                     </td>
                     {activeParticipants.map((participant) => {
@@ -213,7 +215,7 @@ export const AvailabilityPage: FC = () => {
             </div>
             <div className={styles.summaryItem}>
               <span className={styles.summaryValue}>{activeParticipants.length}</span>
-              <span className={styles.summaryLabel}>Participantes activos</span>
+              <span className={styles.summaryLabel}>Participantes</span>
             </div>
             <div className={styles.summaryItem}>
               <span className={`${styles.summaryValue} ${products.filter((p) => getProductAvailabilityCount(p.id) === 0).length > 0 ? styles.warning : ''}`}>

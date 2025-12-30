@@ -1,8 +1,8 @@
 /**
  * ProductsPage - Manage trip products catalog
+ * Simplified version matching domain entity structure
  */
 import { useState, type FC, type FormEvent } from 'react';
-import { useParams } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
 import {
   Button,
@@ -17,25 +17,54 @@ import {
   type TableColumn,
   type SelectOption,
 } from '../../components/common';
-import { useProducts, useModal, type Product, type CreateProductInput, type ProductCategory } from '../../hooks';
+import { useProducts, useModal, type Product, type IProductUpdateDTO } from '../../hooks';
+import type { ProductCategory, ProductType, ProductUnit } from '@domain/types';
 import styles from './ProductsPage.module.css';
 
 const categoryOptions: SelectOption[] = [
-  { value: 'bebida', label: 'Bebida' },
-  { value: 'comida', label: 'Comida' },
-  { value: 'snack', label: 'Snack' },
-  { value: 'otro', label: 'Otro' },
+  { value: 'beverage', label: 'Bebida' },
+  { value: 'food', label: 'Comida' },
+];
+
+const typeOptions: SelectOption[] = [
+  { value: 'water', label: 'Agua' },
+  { value: 'soda', label: 'Refresco' },
+  { value: 'juice', label: 'Zumo' },
+  { value: 'alcohol', label: 'Alcohol' },
+  { value: 'meat', label: 'Carne' },
+  { value: 'dairy', label: 'Lacteos' },
+  { value: 'grains', label: 'Cereales' },
+  { value: 'vegetables', label: 'Verduras' },
+  { value: 'fruits', label: 'Frutas' },
+  { value: 'snacks', label: 'Snacks' },
+  { value: 'other', label: 'Otro' },
+];
+
+const unitOptions: SelectOption[] = [
+  { value: 'unit', label: 'Unidad' },
+  { value: 'bottle', label: 'Botella' },
+  { value: 'can', label: 'Lata' },
+  { value: 'pack', label: 'Paquete' },
+  { value: 'kg', label: 'Kilogramo' },
+  { value: 'liter', label: 'Litro' },
 ];
 
 const categoryLabels: Record<ProductCategory, string> = {
-  bebida: 'Bebida',
-  comida: 'Comida',
-  snack: 'Snack',
-  otro: 'Otro',
+  beverage: 'Bebida',
+  food: 'Comida',
+  other: 'Otro',
 };
 
+interface ProductFormData {
+  name: string;
+  category: ProductCategory;
+  type: ProductType;
+  unit: ProductUnit;
+  defaultQuantityPerPerson: number;
+  notes: string;
+}
+
 export const ProductsPage: FC = () => {
-  const { tripId } = useParams<{ tripId: string }>();
   const {
     products,
     isLoading,
@@ -43,9 +72,8 @@ export const ProductsPage: FC = () => {
     createProduct,
     updateProduct,
     deleteProduct,
-    togglePurchased,
     clearError,
-  } = useProducts(tripId || '');
+  } = useProducts();
 
   // Modal states
   const createModal = useModal();
@@ -53,12 +81,12 @@ export const ProductsPage: FC = () => {
   const deleteModal = useModal();
 
   // Form state
-  const [formData, setFormData] = useState<CreateProductInput>({
+  const [formData, setFormData] = useState<ProductFormData>({
     name: '',
-    category: 'comida',
-    unit: '',
-    quantity: 1,
-    estimatedPrice: undefined,
+    category: 'food',
+    type: 'miscellaneous',
+    unit: 'unit',
+    defaultQuantityPerPerson: 1,
     notes: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -76,10 +104,10 @@ export const ProductsPage: FC = () => {
   const resetForm = () => {
     setFormData({
       name: '',
-      category: 'comida',
-      unit: '',
-      quantity: 1,
-      estimatedPrice: undefined,
+      category: 'food',
+      type: 'miscellaneous',
+      unit: 'unit',
+      defaultQuantityPerPerson: 1,
       notes: '',
     });
     setFormErrors({});
@@ -92,12 +120,6 @@ export const ProductsPage: FC = () => {
     if (!formData.name.trim()) {
       errors.name = 'El nombre es obligatorio';
     }
-    if (!formData.unit.trim()) {
-      errors.unit = 'La unidad es obligatoria';
-    }
-    if (formData.quantity < 1) {
-      errors.quantity = 'La cantidad debe ser al menos 1';
-    }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -109,10 +131,17 @@ export const ProductsPage: FC = () => {
 
     setIsSubmitting(true);
     try {
-      await createProduct(formData);
+      await createProduct({
+        name: formData.name,
+        category: formData.category,
+        type: formData.type,
+        unit: formData.unit,
+        defaultQuantityPerPerson: formData.defaultQuantityPerPerson,
+        notes: formData.notes || undefined,
+      });
       createModal.close();
       resetForm();
-    } catch (err) {
+    } catch (_err) {
       // Error handled by hook
     } finally {
       setIsSubmitting(false);
@@ -125,10 +154,18 @@ export const ProductsPage: FC = () => {
 
     setIsSubmitting(true);
     try {
-      await updateProduct({ id: editingProduct.id, ...formData });
+      const updateData: IProductUpdateDTO = {
+        name: formData.name,
+        category: formData.category,
+        type: formData.type,
+        unit: formData.unit,
+        defaultQuantityPerPerson: formData.defaultQuantityPerPerson,
+        notes: formData.notes || null,
+      };
+      await updateProduct(editingProduct.id, updateData);
       editModal.close();
       resetForm();
-    } catch (err) {
+    } catch (_err) {
       // Error handled by hook
     } finally {
       setIsSubmitting(false);
@@ -140,9 +177,9 @@ export const ProductsPage: FC = () => {
     setFormData({
       name: product.name,
       category: product.category,
+      type: product.type,
       unit: product.unit,
-      quantity: product.quantity,
-      estimatedPrice: product.estimatedPrice,
+      defaultQuantityPerPerson: product.defaultQuantityPerPerson ?? 1,
       notes: product.notes || '',
     });
     editModal.open();
@@ -160,7 +197,7 @@ export const ProductsPage: FC = () => {
       await deleteProduct(productToDelete.id);
       deleteModal.close();
       setProductToDelete(null);
-    } catch (err) {
+    } catch (_err) {
       // Error handled by hook
     }
   };
@@ -193,36 +230,16 @@ export const ProductsPage: FC = () => {
       ),
     },
     {
-      key: 'quantity',
-      header: 'Cantidad',
+      key: 'unit',
+      header: 'Unidad',
       align: 'center',
-      render: (product) => (
-        <span>{product.quantity} {product.unit}</span>
-      ),
+      render: (product) => <span>{product.unit}</span>,
     },
     {
-      key: 'price',
-      header: 'Precio Est.',
-      align: 'right',
-      render: (product) => (
-        product.estimatedPrice
-          ? `${(product.estimatedPrice * product.quantity).toFixed(2)} EUR`
-          : '-'
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Estado',
-      render: (product) => (
-        <button
-          type="button"
-          className={`${styles.statusBadge} ${product.isPurchased ? styles.purchased : styles.pending}`}
-          onClick={() => togglePurchased(product.id)}
-          aria-label={`Marcar ${product.name} como ${product.isPurchased ? 'pendiente' : 'comprado'}`}
-        >
-          {product.isPurchased ? 'Comprado' : 'Pendiente'}
-        </button>
-      ),
+      key: 'defaultQuantity',
+      header: 'Cantidad/Persona',
+      align: 'center',
+      render: (product) => <span>{product.defaultQuantityPerPerson ?? '-'}</span>,
     },
     {
       key: 'actions',
@@ -266,7 +283,7 @@ export const ProductsPage: FC = () => {
       return (
         <ErrorDisplay
           title="Error al cargar productos"
-          message={error}
+          message={error.message}
           onRetry={clearError}
         />
       );
@@ -320,38 +337,32 @@ export const ProductsPage: FC = () => {
         required
         fullWidth
       />
+      <Select
+        label="Tipo"
+        options={typeOptions}
+        value={formData.type}
+        onChange={(e) => setFormData({ ...formData, type: e.target.value as ProductType })}
+        required
+        fullWidth
+      />
       <div className={styles.row}>
         <Input
           type="number"
-          label="Cantidad"
-          value={formData.quantity.toString()}
-          onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-          error={formErrors.quantity}
+          label="Cantidad por persona"
+          value={formData.defaultQuantityPerPerson.toString()}
+          onChange={(e) => setFormData({ ...formData, defaultQuantityPerPerson: parseInt(e.target.value) || 1 })}
           required
           fullWidth
         />
-        <Input
+        <Select
           label="Unidad"
-          placeholder="Ej: botella, paquete"
+          options={unitOptions}
           value={formData.unit}
-          onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-          error={formErrors.unit}
+          onChange={(e) => setFormData({ ...formData, unit: e.target.value as ProductUnit })}
           required
           fullWidth
         />
       </div>
-      <Input
-        type="number"
-        label="Precio estimado (por unidad)"
-        placeholder="0.00"
-        value={formData.estimatedPrice?.toString() || ''}
-        onChange={(e) => setFormData({
-          ...formData,
-          estimatedPrice: e.target.value ? parseFloat(e.target.value) : undefined,
-        })}
-        rightAddon="EUR"
-        fullWidth
-      />
       <Input
         label="Notas"
         placeholder="Notas adicionales..."
@@ -378,10 +389,7 @@ export const ProductsPage: FC = () => {
     </form>
   );
 
-  // Calculate totals
   const totalProducts = products.length;
-  const purchasedCount = products.filter((p) => p.isPurchased).length;
-  const estimatedTotal = products.reduce((sum, p) => sum + (p.estimatedPrice ?? 0) * p.quantity, 0);
 
   return (
     <MainLayout showSidebar tripName="Viaje">
@@ -390,7 +398,7 @@ export const ProductsPage: FC = () => {
           <div>
             <h1 className={styles.title}>Productos</h1>
             <p className={styles.subtitle}>
-              {purchasedCount} de {totalProducts} comprados - Total estimado: {estimatedTotal.toFixed(2)} EUR
+              {totalProducts} productos en el catalogo
             </p>
           </div>
           <Button variant="primary" onClick={handleOpenCreate}>

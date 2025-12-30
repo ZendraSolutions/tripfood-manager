@@ -32,12 +32,18 @@ export interface IConsumptionCreateDTO {
  * Interface representing the data transfer object for updating a Consumption.
  */
 export interface IConsumptionUpdateDTO {
+  /** New participant ID */
+  readonly participantId?: string;
+  /** New product ID */
+  readonly productId?: string;
   /** New date for the consumption */
   readonly date?: Date;
   /** New meal type */
   readonly meal?: MealType;
   /** New quantity */
   readonly quantity?: number;
+  /** New notes (null to remove) */
+  readonly notes?: string | null;
 }
 
 /**
@@ -61,7 +67,7 @@ export interface IConsumptionProps {
   /** Timestamp when the record was created */
   readonly createdAt: Date;
   /** Timestamp when the record was last updated */
-  readonly updatedAt?: Date;
+  readonly updatedAt?: Date | undefined;
 }
 
 /**
@@ -154,7 +160,7 @@ export class Consumption implements IConsumptionProps {
    * Timestamp when the record was last updated.
    * @readonly
    */
-  public readonly updatedAt?: Date;
+  public readonly updatedAt?: Date | undefined;
 
   /**
    * Private constructor to enforce factory method usage.
@@ -341,7 +347,7 @@ export class Consumption implements IConsumptionProps {
    * @returns ISO date string (YYYY-MM-DD)
    */
   public getDateString(): string {
-    return this.date.toISOString().split('T')[0];
+    return this.date.toISOString().split('T')[0] ?? '';
   }
 
   /**

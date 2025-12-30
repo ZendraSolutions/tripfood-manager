@@ -51,7 +51,7 @@ export interface IAvailabilityProps {
   /** Timestamp when the availability was created */
   readonly createdAt: Date;
   /** Timestamp when the availability was last updated */
-  readonly updatedAt?: Date;
+  readonly updatedAt?: Date | undefined;
 }
 
 /**
@@ -121,7 +121,7 @@ export class Availability implements IAvailabilityProps {
    * Timestamp when the availability was last updated.
    * @readonly
    */
-  public readonly updatedAt?: Date;
+  public readonly updatedAt?: Date | undefined;
 
   /**
    * Private constructor to enforce factory method usage.
@@ -362,7 +362,7 @@ export class Availability implements IAvailabilityProps {
    * @returns ISO date string (YYYY-MM-DD)
    */
   public getDateString(): string {
-    return this.date.toISOString().split('T')[0];
+    return this.date.toISOString().split('T')[0] ?? '';
   }
 
   /**

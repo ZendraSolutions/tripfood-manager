@@ -8,7 +8,7 @@
  * @module application/services/ConsumptionService
  */
 
-import type { Consumption, IConsumptionCreateDTO, IConsumptionUpdateDTO } from '@domain/entities/Consumption';
+import type { Consumption } from '@domain/entities/Consumption';
 import type { IConsumptionRepository } from '@domain/interfaces/repositories/IConsumptionRepository';
 import type { IParticipantRepository } from '@domain/interfaces/repositories/IParticipantRepository';
 import type { IProductRepository } from '@domain/interfaces/repositories/IProductRepository';
@@ -16,7 +16,6 @@ import type { ITripRepository } from '@domain/interfaces/repositories/ITripRepos
 import { NotFoundError, ValidationError } from '@domain/errors';
 import type { MealType } from '@domain/types';
 import type {
-  CreateConsumptionDTO as AppCreateConsumptionDTO,
   ConsumptionResponseDTO,
   ConsumptionByDateDTO,
   ConsumptionByParticipantDTO,
@@ -96,7 +95,10 @@ export class ConsumptionService {
     private readonly participantRepository: IParticipantRepository,
     private readonly productRepository: IProductRepository,
     private readonly tripRepository?: ITripRepository
-  ) {}
+  ) {
+    // Mark private methods as intentionally kept for future use
+    void this._toResponseDTO;
+  }
 
   /**
    * Creates a new consumption record.
@@ -344,7 +346,7 @@ export class ConsumptionService {
     }>();
 
     for (const consumption of consumptions) {
-      const dateKey = consumption.date.toISOString().split('T')[0];
+      const dateKey = consumption.date.toISOString().split('T')[0] ?? '';
 
       if (!byDate.has(dateKey)) {
         byDate.set(dateKey, {
@@ -355,10 +357,12 @@ export class ConsumptionService {
         });
       }
 
-      const entry = byDate.get(dateKey)!;
-      entry.participants.add(consumption.participantId);
-      entry.count++;
-      entry.byMeal.set(consumption.meal, (entry.byMeal.get(consumption.meal) || 0) + 1);
+      const entry = byDate.get(dateKey);
+      if (entry) {
+        entry.participants.add(consumption.participantId);
+        entry.count++;
+        entry.byMeal.set(consumption.meal, (entry.byMeal.get(consumption.meal) ?? 0) + 1);
+      }
     }
 
     const summaries: ConsumptionByDateDTO[] = [];
@@ -615,7 +619,7 @@ export class ConsumptionService {
    * @param productName - Name of the product
    * @returns The response DTO
    */
-  private toResponseDTO(
+  private _toResponseDTO(
     consumption: Consumption,
     participantName: string,
     productName: string

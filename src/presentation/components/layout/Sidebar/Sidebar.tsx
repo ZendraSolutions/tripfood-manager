@@ -126,7 +126,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className={styles.footer}>
           <NavLink
             to="/trips"
-            className={styles.backLink}
+            className={styles.backLink ?? ''}
             onClick={onClose}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

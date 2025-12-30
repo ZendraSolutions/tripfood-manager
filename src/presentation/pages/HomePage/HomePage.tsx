@@ -1,18 +1,45 @@
 /**
- * HomePage - Landing page with trip selector and quick actions
+ * HomePage - Landing page with trip selector, quick actions, and general statistics
  */
-import type { FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
 import { Button, Card, Loading, EmptyState } from '../../components/common';
 import { useTrips } from '../../hooks';
 import styles from './HomePage.module.css';
 
+/**
+ * Statistics interface for dashboard display
+ */
+interface DashboardStats {
+  totalTrips: number;
+  totalParticipants: number;
+  upcomingTrips: number;
+  pastTrips: number;
+}
+
 export const HomePage: FC = () => {
   const { trips, isLoading, error } = useTrips();
 
   // Get recent trips (last 3)
   const recentTrips = trips.slice(0, 3);
+
+  // Calculate general statistics
+  // Note: Trip entity doesn't have participantCount, would need to be fetched separately per trip
+  const stats = useMemo<DashboardStats>(() => {
+    const now = new Date();
+    const upcoming = trips.filter((trip) => new Date(trip.startDate) > now).length;
+    const past = trips.filter((trip) => new Date(trip.endDate) < now).length;
+    // ParticipantCount is not available on Trip entity
+    const totalParticipants = 0;
+
+    return {
+      totalTrips: trips.length,
+      totalParticipants,
+      upcomingTrips: upcoming,
+      pastTrips: past,
+    };
+  }, [trips]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -22,7 +49,7 @@ export const HomePage: FC = () => {
     if (error) {
       return (
         <div className={styles.error}>
-          <p>{error}</p>
+          <p>{error.message}</p>
         </div>
       );
     }
@@ -64,6 +91,73 @@ export const HomePage: FC = () => {
           </div>
         </section>
 
+        {/* Statistics Section */}
+        {trips.length > 0 && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Estadisticas generales</h2>
+            <div className={styles.statsGrid}>
+              <Card className={styles.statCard}>
+                <div className={styles.statContent}>
+                  <div className={styles.statIcon} style={{ background: 'var(--color-primary-50)', color: 'var(--color-primary-600)' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                  </div>
+                  <div className={styles.statInfo}>
+                    <span className={styles.statValue}>{stats.totalTrips}</span>
+                    <span className={styles.statLabel}>Viajes totales</span>
+                  </div>
+                </div>
+              </Card>
+              <Card className={styles.statCard}>
+                <div className={styles.statContent}>
+                  <div className={styles.statIcon} style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+                    </svg>
+                  </div>
+                  <div className={styles.statInfo}>
+                    <span className={styles.statValue}>{stats.totalParticipants}</span>
+                    <span className={styles.statLabel}>Participantes totales</span>
+                  </div>
+                </div>
+              </Card>
+              <Card className={styles.statCard}>
+                <div className={styles.statContent}>
+                  <div className={styles.statIcon} style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#2563eb' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </div>
+                  <div className={styles.statInfo}>
+                    <span className={styles.statValue}>{stats.upcomingTrips}</span>
+                    <span className={styles.statLabel}>Viajes proximos</span>
+                  </div>
+                </div>
+              </Card>
+              <Card className={styles.statCard}>
+                <div className={styles.statContent}>
+                  <div className={styles.statIcon} style={{ background: 'var(--color-gray-100)', color: 'var(--color-gray-600)' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                  </div>
+                  <div className={styles.statInfo}>
+                    <span className={styles.statValue}>{stats.pastTrips}</span>
+                    <span className={styles.statLabel}>Viajes completados</span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </section>
+        )}
+
         {/* Recent Trips Section */}
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
@@ -89,7 +183,7 @@ export const HomePage: FC = () => {
                 <Link key={trip.id} to={`/trips/${trip.id}`} className={styles.tripLink}>
                   <Card
                     title={trip.name}
-                    subtitle={trip.location}
+                    subtitle={trip.description}
                     interactive
                     className={styles.tripCard}
                   >
@@ -117,7 +211,7 @@ export const HomePage: FC = () => {
                           <circle cx="9" cy="7" r="4" />
                           <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
                         </svg>
-                        <span>{trip.participantCount} participantes</span>
+                        <span>{trip.getDurationInDays()} dias</span>
                       </div>
                     </div>
                   </Card>

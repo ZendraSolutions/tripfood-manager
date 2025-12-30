@@ -6,64 +6,10 @@
  * @version 1.0.0
  */
 
-/**
- * Product category enumeration.
- * Categorizes products for better organization and filtering.
- */
-export enum ProductCategory {
-  /** Alcoholic beverages */
-  ALCOHOL = 'ALCOHOL',
-  /** Non-alcoholic beverages */
-  BEVERAGES = 'BEVERAGES',
-  /** Meat products */
-  MEAT = 'MEAT',
-  /** Seafood products */
-  SEAFOOD = 'SEAFOOD',
-  /** Dairy products */
-  DAIRY = 'DAIRY',
-  /** Fruits and vegetables */
-  PRODUCE = 'PRODUCE',
-  /** Bread and bakery items */
-  BAKERY = 'BAKERY',
-  /** Snacks and chips */
-  SNACKS = 'SNACKS',
-  /** Condiments and sauces */
-  CONDIMENTS = 'CONDIMENTS',
-  /** Frozen foods */
-  FROZEN = 'FROZEN',
-  /** Canned goods */
-  CANNED = 'CANNED',
-  /** Dry goods and pasta */
-  DRY_GOODS = 'DRY_GOODS',
-  /** Other items */
-  OTHER = 'OTHER',
-}
+import type { ProductCategory, ProductUnit } from '@domain/types';
 
-/**
- * Unit of measurement for products.
- */
-export enum ProductUnit {
-  /** Individual items */
-  UNIT = 'UNIT',
-  /** Kilograms */
-  KILOGRAM = 'KILOGRAM',
-  /** Grams */
-  GRAM = 'GRAM',
-  /** Liters */
-  LITER = 'LITER',
-  /** Milliliters */
-  MILLILITER = 'MILLILITER',
-  /** Packages */
-  PACKAGE = 'PACKAGE',
-  /** Bottles */
-  BOTTLE = 'BOTTLE',
-  /** Cans */
-  CAN = 'CAN',
-  /** Boxes */
-  BOX = 'BOX',
-  /** Dozen */
-  DOZEN = 'DOZEN',
-}
+// Re-export domain types for consumers of this DTO
+export type { ProductCategory, ProductType, ProductUnit } from '@domain/types';
 
 /**
  * DTO for creating a new product in the system.

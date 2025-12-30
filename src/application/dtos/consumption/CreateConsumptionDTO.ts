@@ -6,22 +6,10 @@
  * @version 1.0.0
  */
 
-/**
- * Meal type enumeration.
- * Identifies the meal context for consumption tracking.
- */
-export enum MealType {
-  /** Morning meal */
-  BREAKFAST = 'BREAKFAST',
-  /** Mid-day meal */
-  LUNCH = 'LUNCH',
-  /** Evening meal */
-  DINNER = 'DINNER',
-  /** Between-meal eating */
-  SNACK = 'SNACK',
-  /** Any time consumption */
-  OTHER = 'OTHER',
-}
+import type { MealType } from '@domain/types';
+
+// Re-export MealType for consumers of this DTO
+export type { MealType } from '@domain/types';
 
 /**
  * DTO for creating a new consumption record.

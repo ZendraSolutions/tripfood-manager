@@ -15,7 +15,7 @@ import {
   ConfirmDialog,
   type TableColumn,
 } from '../../components/common';
-import { useParticipants, useModal, type Participant, type CreateParticipantInput } from '../../hooks';
+import { useParticipants, useModal, type Participant, type IParticipantUpdateDTO } from '../../hooks';
 import styles from './ParticipantsPage.module.css';
 
 export const ParticipantsPage: FC = () => {
@@ -27,7 +27,6 @@ export const ParticipantsPage: FC = () => {
     createParticipant,
     updateParticipant,
     deleteParticipant,
-    toggleActive,
     clearError,
   } = useParticipants(tripId || '');
 
@@ -36,11 +35,16 @@ export const ParticipantsPage: FC = () => {
   const editModal = useModal();
   const deleteModal = useModal();
 
-  // Form state
-  const [formData, setFormData] = useState<CreateParticipantInput>({
+  // Form state - using domain DTO compatible structure
+  interface ParticipantFormData {
+    name: string;
+    email: string;
+    notes: string;
+  }
+  const [formData, setFormData] = useState<ParticipantFormData>({
     name: '',
     email: '',
-    phone: '',
+    notes: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,7 +52,7 @@ export const ParticipantsPage: FC = () => {
   const [participantToDelete, setParticipantToDelete] = useState<Participant | null>(null);
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', phone: '' });
+    setFormData({ name: '', email: '', notes: '' });
     setFormErrors({});
     setEditingParticipant(null);
   };
@@ -73,10 +77,14 @@ export const ParticipantsPage: FC = () => {
 
     setIsSubmitting(true);
     try {
-      await createParticipant(formData);
+      await createParticipant({
+        name: formData.name,
+        email: formData.email || undefined,
+        notes: formData.notes || undefined,
+      });
       createModal.close();
       resetForm();
-    } catch (err) {
+    } catch (_err) {
       // Error handled by hook
     } finally {
       setIsSubmitting(false);
@@ -89,10 +97,15 @@ export const ParticipantsPage: FC = () => {
 
     setIsSubmitting(true);
     try {
-      await updateParticipant({ id: editingParticipant.id, ...formData });
+      const updateData: IParticipantUpdateDTO = {
+        name: formData.name,
+        email: formData.email || undefined,
+        notes: formData.notes || undefined,
+      };
+      await updateParticipant(editingParticipant.id, updateData);
       editModal.close();
       resetForm();
-    } catch (err) {
+    } catch (_err) {
       // Error handled by hook
     } finally {
       setIsSubmitting(false);
@@ -104,7 +117,7 @@ export const ParticipantsPage: FC = () => {
     setFormData({
       name: participant.name,
       email: participant.email || '',
-      phone: participant.phone || '',
+      notes: participant.notes || '',
     });
     editModal.open();
   };
@@ -121,7 +134,7 @@ export const ParticipantsPage: FC = () => {
       await deleteParticipant(participantToDelete.id);
       deleteModal.close();
       setParticipantToDelete(null);
-    } catch (err) {
+    } catch (_err) {
       // Error handled by hook
     }
   };
@@ -150,23 +163,9 @@ export const ParticipantsPage: FC = () => {
       render: (participant) => participant.email || '-',
     },
     {
-      key: 'phone',
-      header: 'Telefono',
-      render: (participant) => participant.phone || '-',
-    },
-    {
-      key: 'status',
-      header: 'Estado',
-      render: (participant) => (
-        <button
-          type="button"
-          className={`${styles.statusBadge} ${participant.isActive ? styles.active : styles.inactive}`}
-          onClick={() => toggleActive(participant.id)}
-          aria-label={`Cambiar estado de ${participant.name}`}
-        >
-          {participant.isActive ? 'Activo' : 'Inactivo'}
-        </button>
-      ),
+      key: 'notes',
+      header: 'Notas',
+      render: (participant) => participant.notes || '-',
     },
     {
       key: 'actions',
@@ -210,7 +209,7 @@ export const ParticipantsPage: FC = () => {
       return (
         <ErrorDisplay
           title="Error al cargar participantes"
-          message={error}
+          message={error.message}
           onRetry={clearError}
         />
       );
@@ -267,11 +266,10 @@ export const ParticipantsPage: FC = () => {
         fullWidth
       />
       <Input
-        type="tel"
-        label="Telefono"
-        placeholder="+34 600 000 000"
-        value={formData.phone}
-        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+        label="Notas"
+        placeholder="Notas adicionales (alergias, preferencias...)"
+        value={formData.notes}
+        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
         fullWidth
       />
       <div className={styles.formActions}>

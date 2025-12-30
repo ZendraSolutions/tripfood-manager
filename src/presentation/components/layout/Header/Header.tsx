@@ -7,11 +7,11 @@ import styles from './Header.module.css';
 
 export interface HeaderProps {
   /** Current trip name (if in trip context) */
-  tripName?: string;
+  tripName?: string | undefined;
   /** Whether to show navigation */
-  showNav?: boolean;
+  showNav?: boolean | undefined;
   /** Callback to toggle sidebar */
-  onToggleSidebar?: () => void;
+  onToggleSidebar?: (() => void) | undefined;
 }
 
 export const Header: FC<HeaderProps> = ({

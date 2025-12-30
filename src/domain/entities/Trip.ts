@@ -18,7 +18,7 @@ export interface ITripCreateDTO {
   /** Name of the trip */
   readonly name: string;
   /** Optional description of the trip */
-  readonly description?: string;
+  readonly description?: string | undefined;
   /** Start date of the trip */
   readonly startDate: Date;
   /** End date of the trip */
@@ -31,13 +31,13 @@ export interface ITripCreateDTO {
  */
 export interface ITripUpdateDTO {
   /** New name for the trip */
-  readonly name?: string;
+  readonly name?: string | undefined;
   /** New description for the trip (null to remove) */
-  readonly description?: string | null;
+  readonly description?: string | null | undefined;
   /** New start date for the trip */
-  readonly startDate?: Date;
+  readonly startDate?: Date | undefined;
   /** New end date for the trip */
-  readonly endDate?: Date;
+  readonly endDate?: Date | undefined;
 }
 
 /**
@@ -47,7 +47,7 @@ export interface ITripProps extends IEntity {
   /** Name of the trip */
   readonly name: string;
   /** Optional description of the trip */
-  readonly description?: string;
+  readonly description?: string | undefined;
   /** Start date of the trip */
   readonly startDate: Date;
   /** End date of the trip */
@@ -114,7 +114,7 @@ export class Trip implements ITripProps {
    * Optional description of the trip.
    * @readonly
    */
-  public readonly description?: string;
+  public readonly description?: string | undefined;
 
   /**
    * Start date of the trip.
@@ -138,7 +138,7 @@ export class Trip implements ITripProps {
    * Timestamp when the trip was last updated.
    * @readonly
    */
-  public readonly updatedAt?: Date;
+  public readonly updatedAt?: Date | undefined;
 
   /**
    * Private constructor to enforce factory method usage.

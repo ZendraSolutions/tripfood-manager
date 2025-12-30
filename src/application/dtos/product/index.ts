@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-export { ProductCategory, ProductUnit } from './CreateProductDTO';
+export type { ProductCategory, ProductType, ProductUnit } from './CreateProductDTO';
 export type { CreateProductDTO } from './CreateProductDTO';
 export type { UpdateProductDTO } from './UpdateProductDTO';
 export type {

@@ -9,10 +9,11 @@
  * @version 1.0.0
  */
 
-import type { IProductRepository } from '@domain/interfaces/repositories/IProductRepository';
-import type { Product } from '@domain/entities/Product';
+import type { IProductRepository, IProductQueryFilters } from '@domain/interfaces/repositories/IProductRepository';
+import type { Product, IProductUpdateDTO } from '@domain/entities/Product';
+import type { ProductCategory, ProductType, ProductUnit } from '@domain/types';
 import { TripFoodDatabase, type ProductRecord } from './database';
-import { ProductMapper, type ProductProps, type ProductType } from '../mappers/ProductMapper';
+import { ProductMapper, type ProductProps } from '../mappers/ProductMapper';
 import { DatabaseError } from '../../errors/DatabaseError';
 
 /**
@@ -274,41 +275,23 @@ export class IndexedDBProductRepository implements IProductRepository {
   }
 
   /**
-   * Actualiza campos específicos de un producto.
+   * Actualiza un producto existente.
    *
-   * @param id - ID del producto a actualizar
-   * @param updates - Objeto con los campos a actualizar
-   * @returns Promise con el Product actualizado o null si no existe
+   * @param entity - Entidad Product con los datos actualizados
+   * @returns Promise con el Product actualizado
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
-  public async update(
-    id: string,
-    updates: Partial<
-      Pick<ProductRecord, 'name' | 'category' | 'type' | 'unit' | 'defaultQuantityPerPerson' | 'notes'>
-    >
-  ): Promise<Product | null> {
+  public async update(entity: Product): Promise<Product> {
     try {
-      const existingRecord = await this.db.products.get(id);
-
-      if (!existingRecord) {
-        return null;
-      }
-
-      const updatedRecord: ProductRecord = {
-        ...existingRecord,
-        ...updates,
-      };
-
-      await this.db.products.put(updatedRecord);
-
-      const props = ProductMapper.toDomainProps(updatedRecord);
-      return this.productFactory(props);
+      const record = ProductMapper.toRecord(entity);
+      await this.db.products.put(record);
+      return entity;
     } catch (error) {
       throw new DatabaseError(
         'update',
         'products',
         error instanceof Error ? error : undefined,
-        id
+        entity.id
       );
     }
   }
@@ -407,26 +390,190 @@ export class IndexedDBProductRepository implements IProductRepository {
   }
 
   /**
-   * Obtiene todos los productos ordenados por categoría y luego por nombre.
+   * Obtiene todos los productos agrupados por categoría.
    *
-   * @returns Promise con array de Product ordenados
+   * @returns Promise con Map de categoría a array de productos
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
-  public async findAllGroupedByCategory(): Promise<Product[]> {
+  public async findAllGroupedByCategory(): Promise<Map<ProductCategory, Product[]>> {
     try {
-      const records = await this.db.products.orderBy('category').toArray();
-      // Ordenar secundariamente por nombre dentro de cada categoría
-      records.sort((a, b) => {
-        if (a.category === b.category) {
-          return a.name.localeCompare(b.name);
+      const records = await this.db.products.toArray();
+      const grouped = new Map<ProductCategory, Product[]>();
+
+      for (const record of records) {
+        const props = ProductMapper.toDomainProps(record);
+        const product = this.productFactory(props);
+        const category = product.category;
+
+        if (!grouped.has(category)) {
+          grouped.set(category, []);
         }
-        return a.category.localeCompare(b.category);
-      });
+        grouped.get(category)!.push(product);
+      }
+
+      // Ordenar productos por nombre dentro de cada categoría
+      for (const products of grouped.values()) {
+        products.sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      return grouped;
+    } catch (error) {
+      throw new DatabaseError('findAll', 'products', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Encuentra productos por unidad de medida.
+   *
+   * @param unit - Unidad a buscar
+   * @returns Promise con array de productos con esa unidad
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findByUnit(unit: ProductUnit): Promise<Product[]> {
+    try {
+      const records = await this.db.products
+        .filter((product) => product.unit === unit)
+        .toArray();
 
       const propsList = ProductMapper.toDomainPropsList(records);
       return propsList.map((props) => this.productFactory(props));
     } catch (error) {
-      throw new DatabaseError('findAll', 'products', error instanceof Error ? error : undefined);
+      throw new DatabaseError('find', 'products', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Encuentra productos que tienen cantidad predeterminada por persona.
+   *
+   * @returns Promise con array de productos con cantidad predeterminada
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findWithDefaultQuantity(): Promise<Product[]> {
+    try {
+      const records = await this.db.products
+        .filter((product) => product.defaultQuantityPerPerson !== undefined && product.defaultQuantityPerPerson > 0)
+        .toArray();
+
+      const propsList = ProductMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.productFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'products', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Actualiza parcialmente un producto con los campos proporcionados.
+   *
+   * @param id - ID del producto a actualizar
+   * @param updates - Campos a actualizar
+   * @returns Promise con el producto actualizado o null si no existe
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async partialUpdate(id: string, updates: IProductUpdateDTO): Promise<Product | null> {
+    try {
+      const existingRecord = await this.db.products.get(id);
+
+      if (!existingRecord) {
+        return null;
+      }
+
+      const updatedRecord: ProductRecord = {
+        ...existingRecord,
+        ...(updates.name !== undefined && { name: updates.name }),
+        ...(updates.category !== undefined && { category: updates.category }),
+        ...(updates.type !== undefined && { type: updates.type }),
+        ...(updates.unit !== undefined && { unit: updates.unit }),
+        ...(updates.defaultQuantityPerPerson !== undefined && {
+          defaultQuantityPerPerson: updates.defaultQuantityPerPerson === null ? undefined : updates.defaultQuantityPerPerson,
+        }),
+        ...(updates.notes !== undefined && { notes: updates.notes === null ? undefined : updates.notes }),
+      };
+
+      await this.db.products.put(updatedRecord);
+
+      const props = ProductMapper.toDomainProps(updatedRecord);
+      return this.productFactory(props);
+    } catch (error) {
+      throw new DatabaseError(
+        'update',
+        'products',
+        error instanceof Error ? error : undefined,
+        id
+      );
+    }
+  }
+
+  /**
+   * Verifica si existe un producto con el nombre dado.
+   *
+   * @param name - Nombre a verificar
+   * @param excludeId - ID opcional a excluir de la búsqueda
+   * @returns Promise que resuelve a true si existe
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async existsByName(name: string, excludeId?: string): Promise<boolean> {
+    try {
+      const normalizedName = name.toLowerCase().trim();
+      const record = await this.db.products
+        .filter((product) => {
+          if (excludeId && product.id === excludeId) {
+            return false;
+          }
+          return product.name.toLowerCase().trim() === normalizedName;
+        })
+        .first();
+
+      return record !== undefined;
+    } catch (error) {
+      throw new DatabaseError('find', 'products', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Encuentra productos usando filtros complejos.
+   *
+   * @param filters - Criterios de filtrado
+   * @returns Promise con array de productos que coinciden
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findWithFilters(filters: IProductQueryFilters): Promise<Product[]> {
+    try {
+      let records = await this.db.products.toArray();
+
+      // Filtrar por categoría
+      if (filters.category) {
+        records = records.filter((p) => p.category === filters.category);
+      }
+
+      // Filtrar por tipo
+      if (filters.type) {
+        records = records.filter((p) => p.type === filters.type);
+      }
+
+      // Filtrar por unidad
+      if (filters.unit) {
+        records = records.filter((p) => p.unit === filters.unit);
+      }
+
+      // Filtrar por nombre
+      if (filters.name) {
+        const searchTerm = filters.name.toLowerCase();
+        records = records.filter((p) => p.name.toLowerCase().includes(searchTerm));
+      }
+
+      // Filtrar por tener cantidad predeterminada
+      if (filters.hasDefaultQuantity !== undefined) {
+        if (filters.hasDefaultQuantity) {
+          records = records.filter((p) => p.defaultQuantityPerPerson !== undefined && p.defaultQuantityPerPerson > 0);
+        } else {
+          records = records.filter((p) => p.defaultQuantityPerPerson === undefined || p.defaultQuantityPerPerson <= 0);
+        }
+      }
+
+      const propsList = ProductMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.productFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'products', error instanceof Error ? error : undefined);
     }
   }
 }

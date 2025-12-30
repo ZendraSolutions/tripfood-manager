@@ -80,6 +80,51 @@
   text-decoration: underline;
 }
 
+/* Stats Grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.statCard {
+  padding: var(--space-4) !important;
+}
+
+.statContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.statIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
+}
+
+.statInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.statValue {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-gray-900);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+}
+
 /* Trip Grid */
 .tripGrid {
   display: grid;
@@ -207,11 +252,21 @@
     gap: var(--space-2);
   }
 
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .tripGrid {
     grid-template-columns: 1fr;
   }
 
   .featureGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .statsGrid {
     grid-template-columns: 1fr;
   }
 }

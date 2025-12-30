@@ -14,7 +14,12 @@
       "Bash(git init:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(gh repo create:*)",
+      "Bash(npm run deploy:*)",
+      "Bash(gh api:*)",
+      "Bash(git fetch:*)",
+      "Bash(npm run build:strict:*)"
     ]
   }
 }

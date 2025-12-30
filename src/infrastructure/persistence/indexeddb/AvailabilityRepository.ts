@@ -9,11 +9,11 @@
  * @version 1.0.0
  */
 
-import type { IAvailabilityRepository } from '@domain/interfaces/repositories/IAvailabilityRepository';
-import type { Availability } from '@domain/entities/Availability';
+import type { IAvailabilityRepository, IAvailabilityQueryFilters, IAvailabilitySummary } from '@domain/interfaces/repositories/IAvailabilityRepository';
+import type { Availability, IAvailabilityUpdateDTO } from '@domain/entities/Availability';
+import type { IDateRange, MealType } from '@domain/types';
 import { TripFoodDatabase, type AvailabilityRecord } from './database';
 import { AvailabilityMapper, type AvailabilityProps } from '../mappers/AvailabilityMapper';
-import type { MealType } from '../mappers/ConsumptionMapper';
 import { DatabaseError } from '../../errors/DatabaseError';
 
 /**
@@ -314,19 +314,17 @@ export class IndexedDBAvailabilityRepository implements IAvailabilityRepository 
    * Busca disponibilidades en un rango de fechas para un viaje.
    *
    * @param tripId - ID del viaje
-   * @param startDate - Fecha de inicio del rango
-   * @param endDate - Fecha de fin del rango
+   * @param dateRange - Rango de fechas (startDate, endDate)
    * @returns Promise con array de Availability en el rango
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
   public async findByTripIdAndDateRange(
     tripId: string,
-    startDate: Date,
-    endDate: Date
+    dateRange: IDateRange
   ): Promise<Availability[]> {
     try {
-      const startStr = startDate.toISOString();
-      const endStr = endDate.toISOString();
+      const startStr = dateRange.startDate.toISOString();
+      const endStr = dateRange.endDate.toISOString();
 
       const records = await this.db.availabilities
         .where('tripId')
@@ -401,17 +399,36 @@ export class IndexedDBAvailabilityRepository implements IAvailabilityRepository 
   }
 
   /**
-   * Actualiza campos específicos de una disponibilidad.
+   * Actualiza una disponibilidad existente.
    *
-   * @param id - ID de la disponibilidad a actualizar
-   * @param updates - Objeto con los campos a actualizar
+   * @param entity - Entidad Availability con los datos actualizados
+   * @returns Promise con el Availability actualizado
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async update(entity: Availability): Promise<Availability> {
+    try {
+      const record = AvailabilityMapper.toRecord(entity);
+      await this.db.availabilities.put(record);
+      return entity;
+    } catch (error) {
+      throw new DatabaseError(
+        'update',
+        'availabilities',
+        error instanceof Error ? error : undefined,
+        entity.id
+      );
+    }
+  }
+
+  /**
+   * Actualiza las comidas de una disponibilidad existente.
+   *
+   * @param id - ID de la disponibilidad
+   * @param meals - Nuevo array de comidas
    * @returns Promise con el Availability actualizado o null si no existe
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
-  public async update(
-    id: string,
-    updates: Partial<Pick<AvailabilityRecord, 'date' | 'meals'>>
-  ): Promise<Availability | null> {
+  public async updateMeals(id: string, meals: MealType[]): Promise<Availability | null> {
     try {
       const existingRecord = await this.db.availabilities.get(id);
 
@@ -421,7 +438,7 @@ export class IndexedDBAvailabilityRepository implements IAvailabilityRepository 
 
       const updatedRecord: AvailabilityRecord = {
         ...existingRecord,
-        ...updates,
+        meals,
       };
 
       await this.db.availabilities.put(updatedRecord);
@@ -436,18 +453,6 @@ export class IndexedDBAvailabilityRepository implements IAvailabilityRepository 
         id
       );
     }
-  }
-
-  /**
-   * Actualiza las comidas de una disponibilidad existente.
-   *
-   * @param id - ID de la disponibilidad
-   * @param meals - Nuevo array de comidas
-   * @returns Promise con el Availability actualizado o null si no existe
-   * @throws {DatabaseError} Si ocurre un error de base de datos
-   */
-  public async updateMeals(id: string, meals: MealType[]): Promise<Availability | null> {
-    return this.update(id, { meals });
   }
 
   /**
@@ -589,7 +594,7 @@ export class IndexedDBAvailabilityRepository implements IAvailabilityRepository 
 
       if (existing) {
         // Actualizar existente
-        await this.update(existing.id, { meals: [...availability.meals] });
+        await this.updateMeals(existing.id, [...availability.meals]);
         return availability;
       }
 
@@ -602,6 +607,229 @@ export class IndexedDBAvailabilityRepository implements IAvailabilityRepository 
         error instanceof Error ? error : undefined,
         availability.id
       );
+    }
+  }
+
+  /**
+   * Crea o actualiza una disponibilidad (método upsert).
+   *
+   * @param availability - Entidad Availability a guardar/actualizar
+   * @returns Promise con el Availability guardado/actualizado
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async upsert(availability: Availability): Promise<Availability> {
+    return this.upsertByParticipantAndDate(availability);
+  }
+
+  /**
+   * Busca disponibilidad de un participante en un viaje y fecha específicos.
+   *
+   * @param participantId - ID del participante
+   * @param tripId - ID del viaje
+   * @param date - Fecha a buscar
+   * @returns Promise con el Availability encontrado o null
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findByParticipantTripAndDate(
+    participantId: string,
+    tripId: string,
+    date: Date
+  ): Promise<Availability | null> {
+    try {
+      const dateStr = AvailabilityMapper.toDateOnlyString(date);
+
+      const record = await this.db.availabilities
+        .where('[participantId+tripId]')
+        .equals([participantId, tripId])
+        .filter((r) => r.date.startsWith(dateStr))
+        .first();
+
+      if (!record) {
+        return null;
+      }
+
+      const props = AvailabilityMapper.toDomainProps(record);
+      return this.availabilityFactory(props);
+    } catch (error) {
+      throw new DatabaseError(
+        'findByIndex',
+        'availabilities',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  /**
+   * Actualiza parcialmente una disponibilidad con los campos proporcionados.
+   *
+   * @param id - ID de la disponibilidad a actualizar
+   * @param updates - Campos a actualizar
+   * @returns Promise con la disponibilidad actualizada o null si no existe
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async partialUpdate(id: string, updates: IAvailabilityUpdateDTO): Promise<Availability | null> {
+    try {
+      const existingRecord = await this.db.availabilities.get(id);
+
+      if (!existingRecord) {
+        return null;
+      }
+
+      const updatedRecord: AvailabilityRecord = {
+        ...existingRecord,
+        ...(updates.date !== undefined && { date: updates.date.toISOString() }),
+        ...(updates.meals !== undefined && { meals: [...updates.meals] }),
+      };
+
+      await this.db.availabilities.put(updatedRecord);
+
+      const props = AvailabilityMapper.toDomainProps(updatedRecord);
+      return this.availabilityFactory(props);
+    } catch (error) {
+      throw new DatabaseError(
+        'update',
+        'availabilities',
+        error instanceof Error ? error : undefined,
+        id
+      );
+    }
+  }
+
+  /**
+   * Encuentra disponibilidades usando filtros complejos.
+   *
+   * @param filters - Criterios de filtrado
+   * @returns Promise con array de disponibilidades que coinciden
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findWithFilters(filters: IAvailabilityQueryFilters): Promise<Availability[]> {
+    try {
+      let records = await this.db.availabilities.toArray();
+
+      // Filtrar por tripId
+      if (filters.tripId) {
+        records = records.filter((a) => a.tripId === filters.tripId);
+      }
+
+      // Filtrar por participantId
+      if (filters.participantId) {
+        records = records.filter((a) => a.participantId === filters.participantId);
+      }
+
+      // Filtrar por fecha
+      if (filters.date) {
+        const dateStr = AvailabilityMapper.toDateOnlyString(filters.date);
+        records = records.filter((a) => a.date.startsWith(dateStr));
+      }
+
+      // Filtrar por rango de fechas
+      if (filters.dateRange) {
+        const startStr = filters.dateRange.startDate.toISOString();
+        const endStr = filters.dateRange.endDate.toISOString();
+        records = records.filter((a) => a.date >= startStr && a.date <= endStr);
+      }
+
+      // Filtrar por meal disponible
+      if (filters.meal) {
+        records = records.filter((a) => a.meals.includes(filters.meal!));
+      }
+
+      const propsList = AvailabilityMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.availabilityFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'availabilities', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Obtiene un resumen de disponibilidad por fecha para un viaje.
+   *
+   * @param tripId - ID del viaje
+   * @param date - Fecha a consultar
+   * @returns Promise con array de resúmenes por comida
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async getSummaryByDate(tripId: string, date: Date): Promise<IAvailabilitySummary[]> {
+    try {
+      const dateStr = AvailabilityMapper.toDateOnlyString(date);
+
+      const records = await this.db.availabilities
+        .where('tripId')
+        .equals(tripId)
+        .filter((r) => r.date.startsWith(dateStr))
+        .toArray();
+
+      // Crear resumen para cada tipo de comida
+      const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+      const summaries: IAvailabilitySummary[] = [];
+
+      for (const meal of mealTypes) {
+        const availableRecords = records.filter((r) => r.meals.includes(meal));
+        summaries.push({
+          date: new Date(date),
+          meal,
+          availableCount: availableRecords.length,
+          participantIds: availableRecords.map((r) => r.participantId),
+        });
+      }
+
+      return summaries;
+    } catch (error) {
+      throw new DatabaseError('find', 'availabilities', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Cuenta el número de participantes disponibles para una comida específica.
+   *
+   * @param tripId - ID del viaje
+   * @param date - Fecha a consultar
+   * @param meal - Tipo de comida
+   * @returns Promise con el conteo de participantes disponibles
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async countAvailableForMeal(tripId: string, date: Date, meal: MealType): Promise<number> {
+    try {
+      const dateStr = AvailabilityMapper.toDateOnlyString(date);
+
+      const count = await this.db.availabilities
+        .where('tripId')
+        .equals(tripId)
+        .filter((r) => r.date.startsWith(dateStr) && r.meals.includes(meal))
+        .count();
+
+      return count;
+    } catch (error) {
+      throw new DatabaseError('count', 'availabilities', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Obtiene los IDs de participantes disponibles para una comida específica.
+   *
+   * @param tripId - ID del viaje
+   * @param date - Fecha a consultar
+   * @param meal - Tipo de comida
+   * @returns Promise con array de IDs de participantes
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async getParticipantsAvailableForMeal(
+    tripId: string,
+    date: Date,
+    meal: MealType
+  ): Promise<string[]> {
+    try {
+      const dateStr = AvailabilityMapper.toDateOnlyString(date);
+
+      const records = await this.db.availabilities
+        .where('tripId')
+        .equals(tripId)
+        .filter((r) => r.date.startsWith(dateStr) && r.meals.includes(meal))
+        .toArray();
+
+      return records.map((r) => r.participantId);
+    } catch (error) {
+      throw new DatabaseError('find', 'availabilities', error instanceof Error ? error : undefined);
     }
   }
 }

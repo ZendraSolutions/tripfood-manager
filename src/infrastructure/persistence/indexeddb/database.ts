@@ -20,7 +20,7 @@ export interface TripRecord {
   /** Nombre del viaje */
   name: string;
   /** Descripción opcional del viaje */
-  description?: string;
+  description?: string | undefined;
   /** Fecha de inicio en formato ISO 8601 */
   startDate: string;
   /** Fecha de fin en formato ISO 8601 */
@@ -42,9 +42,9 @@ export interface ParticipantRecord {
   /** Nombre del participante */
   name: string;
   /** Email del participante (opcional) */
-  email?: string;
+  email?: string | undefined;
   /** Notas adicionales (opcional) */
-  notes?: string;
+  notes?: string | undefined;
   /** Timestamp de creación en formato ISO 8601 */
   createdAt: string;
 }
@@ -64,9 +64,9 @@ export interface ProductRecord {
   /** Unidad de medida (ej: 'kg', 'unidad', 'litro') */
   unit: string;
   /** Cantidad por defecto por persona (opcional) */
-  defaultQuantityPerPerson?: number;
+  defaultQuantityPerPerson?: number | undefined;
   /** Notas adicionales (opcional) */
-  notes?: string;
+  notes?: string | undefined;
   /** Timestamp de creación en formato ISO 8601 */
   createdAt: string;
 }

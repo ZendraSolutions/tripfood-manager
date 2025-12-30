@@ -9,8 +9,9 @@
  * @version 1.0.0
  */
 
-import type { IConsumptionRepository } from '@domain/interfaces/repositories/IConsumptionRepository';
-import type { Consumption } from '@domain/entities/Consumption';
+import type { IConsumptionRepository, IConsumptionQueryFilters, IConsumptionSummary } from '@domain/interfaces/repositories/IConsumptionRepository';
+import type { Consumption, IConsumptionUpdateDTO } from '@domain/entities/Consumption';
+import type { IDateRange } from '@domain/types';
 import { TripFoodDatabase, type ConsumptionRecord } from './database';
 import { ConsumptionMapper, type ConsumptionProps, type MealType } from '../mappers/ConsumptionMapper';
 import { DatabaseError } from '../../errors/DatabaseError';
@@ -357,19 +358,17 @@ export class IndexedDBConsumptionRepository implements IConsumptionRepository {
    * Busca consumos en un rango de fechas para un viaje.
    *
    * @param tripId - ID del viaje
-   * @param startDate - Fecha de inicio del rango
-   * @param endDate - Fecha de fin del rango
+   * @param dateRange - Rango de fechas (startDate, endDate)
    * @returns Promise con array de Consumption en el rango
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
   public async findByTripIdAndDateRange(
     tripId: string,
-    startDate: Date,
-    endDate: Date
+    dateRange: IDateRange
   ): Promise<Consumption[]> {
     try {
-      const startStr = startDate.toISOString();
-      const endStr = endDate.toISOString();
+      const startStr = dateRange.startDate.toISOString();
+      const endStr = dateRange.endDate.toISOString();
 
       const records = await this.db.consumptions
         .where('tripId')
@@ -410,39 +409,23 @@ export class IndexedDBConsumptionRepository implements IConsumptionRepository {
   }
 
   /**
-   * Actualiza campos específicos de un consumo.
+   * Actualiza un consumo existente.
    *
-   * @param id - ID del consumo a actualizar
-   * @param updates - Objeto con los campos a actualizar
-   * @returns Promise con el Consumption actualizado o null si no existe
+   * @param entity - Entidad Consumption con los datos actualizados
+   * @returns Promise con el Consumption actualizado
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
-  public async update(
-    id: string,
-    updates: Partial<Pick<ConsumptionRecord, 'participantId' | 'productId' | 'date' | 'meal' | 'quantity'>>
-  ): Promise<Consumption | null> {
+  public async update(entity: Consumption): Promise<Consumption> {
     try {
-      const existingRecord = await this.db.consumptions.get(id);
-
-      if (!existingRecord) {
-        return null;
-      }
-
-      const updatedRecord: ConsumptionRecord = {
-        ...existingRecord,
-        ...updates,
-      };
-
-      await this.db.consumptions.put(updatedRecord);
-
-      const props = ConsumptionMapper.toDomainProps(updatedRecord);
-      return this.consumptionFactory(props);
+      const record = ConsumptionMapper.toRecord(entity);
+      await this.db.consumptions.put(record);
+      return entity;
     } catch (error) {
       throw new DatabaseError(
         'update',
         'consumptions',
         error instanceof Error ? error : undefined,
-        id
+        entity.id
       );
     }
   }
@@ -595,5 +578,191 @@ export class IndexedDBConsumptionRepository implements IConsumptionRepository {
     } catch (error) {
       throw new DatabaseError('find', 'consumptions', error instanceof Error ? error : undefined);
     }
+  }
+
+  /**
+   * Busca consumos de un participante en una fecha específica.
+   *
+   * @param participantId - ID del participante
+   * @param date - Fecha a buscar
+   * @returns Promise con array de consumos del participante en esa fecha
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findByParticipantIdAndDate(participantId: string, date: Date): Promise<Consumption[]> {
+    try {
+      const dateStr = ConsumptionMapper.toDateOnlyString(date);
+
+      const records = await this.db.consumptions
+        .where('participantId')
+        .equals(participantId)
+        .filter((record) => record.date.startsWith(dateStr))
+        .toArray();
+
+      const propsList = ConsumptionMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.consumptionFactory(props));
+    } catch (error) {
+      throw new DatabaseError(
+        'findByIndex',
+        'consumptions',
+        error instanceof Error ? error : undefined,
+        participantId
+      );
+    }
+  }
+
+  /**
+   * Actualiza parcialmente un consumo con los campos proporcionados.
+   *
+   * @param id - ID del consumo a actualizar
+   * @param updates - Campos a actualizar
+   * @returns Promise con el consumo actualizado o null si no existe
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async partialUpdate(id: string, updates: IConsumptionUpdateDTO): Promise<Consumption | null> {
+    try {
+      const existingRecord = await this.db.consumptions.get(id);
+
+      if (!existingRecord) {
+        return null;
+      }
+
+      const updatedRecord: ConsumptionRecord = {
+        ...existingRecord,
+        ...(updates.participantId !== undefined && { participantId: updates.participantId }),
+        ...(updates.productId !== undefined && { productId: updates.productId }),
+        ...(updates.date !== undefined && { date: updates.date.toISOString() }),
+        ...(updates.meal !== undefined && { meal: updates.meal }),
+        ...(updates.quantity !== undefined && { quantity: updates.quantity }),
+        ...(updates.notes !== undefined && { notes: updates.notes === null ? undefined : updates.notes }),
+      };
+
+      await this.db.consumptions.put(updatedRecord);
+
+      const props = ConsumptionMapper.toDomainProps(updatedRecord);
+      return this.consumptionFactory(props);
+    } catch (error) {
+      throw new DatabaseError(
+        'update',
+        'consumptions',
+        error instanceof Error ? error : undefined,
+        id
+      );
+    }
+  }
+
+  /**
+   * Encuentra consumos usando filtros complejos.
+   *
+   * @param filters - Criterios de filtrado
+   * @returns Promise con array de consumos que coinciden
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findWithFilters(filters: IConsumptionQueryFilters): Promise<Consumption[]> {
+    try {
+      let records = await this.db.consumptions.toArray();
+
+      // Filtrar por tripId
+      if (filters.tripId) {
+        records = records.filter((c) => c.tripId === filters.tripId);
+      }
+
+      // Filtrar por participantId
+      if (filters.participantId) {
+        records = records.filter((c) => c.participantId === filters.participantId);
+      }
+
+      // Filtrar por productId
+      if (filters.productId) {
+        records = records.filter((c) => c.productId === filters.productId);
+      }
+
+      // Filtrar por meal
+      if (filters.meal) {
+        records = records.filter((c) => c.meal === filters.meal);
+      }
+
+      // Filtrar por fecha
+      if (filters.date) {
+        const dateStr = ConsumptionMapper.toDateOnlyString(filters.date);
+        records = records.filter((c) => c.date.startsWith(dateStr));
+      }
+
+      // Filtrar por rango de fechas
+      if (filters.dateRange) {
+        const startStr = filters.dateRange.startDate.toISOString();
+        const endStr = filters.dateRange.endDate.toISOString();
+        records = records.filter((c) => c.date >= startStr && c.date <= endStr);
+      }
+
+      const propsList = ConsumptionMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.consumptionFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'consumptions', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Obtiene un resumen de consumo por producto para un viaje.
+   *
+   * @param tripId - ID del viaje
+   * @returns Promise con array de resúmenes de consumo por producto
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async getSummaryByProduct(tripId: string): Promise<IConsumptionSummary[]> {
+    try {
+      const records = await this.db.consumptions
+        .where('tripId')
+        .equals(tripId)
+        .toArray();
+
+      // Agrupar por productId
+      const productMap = new Map<string, {
+        totalQuantity: number;
+        consumptionCount: number;
+        participantIds: Set<string>;
+      }>();
+
+      for (const record of records) {
+        if (!productMap.has(record.productId)) {
+          productMap.set(record.productId, {
+            totalQuantity: 0,
+            consumptionCount: 0,
+            participantIds: new Set(),
+          });
+        }
+
+        const summary = productMap.get(record.productId)!;
+        summary.totalQuantity += record.quantity;
+        summary.consumptionCount += 1;
+        summary.participantIds.add(record.participantId);
+      }
+
+      // Convertir a array de IConsumptionSummary
+      const summaries: IConsumptionSummary[] = [];
+      for (const [productId, data] of productMap.entries()) {
+        summaries.push({
+          productId,
+          totalQuantity: data.totalQuantity,
+          consumptionCount: data.consumptionCount,
+          uniqueParticipants: data.participantIds.size,
+        });
+      }
+
+      return summaries;
+    } catch (error) {
+      throw new DatabaseError('find', 'consumptions', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Obtiene la cantidad total consumida de un producto en un viaje.
+   *
+   * @param tripId - ID del viaje
+   * @param productId - ID del producto
+   * @returns Promise con la cantidad total
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async getTotalQuantityByProduct(tripId: string, productId: string): Promise<number> {
+    return this.sumQuantityByTripIdAndProductId(tripId, productId);
   }
 }

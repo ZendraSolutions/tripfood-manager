@@ -14,8 +14,18 @@ import {
   ErrorDisplay,
   ConfirmDialog,
 } from '../../components/common';
-import { useTrips, useModal, type CreateTripInput } from '../../hooks';
+import { useTrips, useModal } from '../../hooks';
 import styles from './TripsPage.module.css';
+
+/**
+ * Form data for creating a trip (uses string dates for HTML inputs)
+ */
+interface TripFormData {
+  name: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+}
 
 export const TripsPage: FC = () => {
   const navigate = useNavigate();
@@ -26,12 +36,11 @@ export const TripsPage: FC = () => {
   const deleteModal = useModal();
 
   // Form state
-  const [formData, setFormData] = useState<CreateTripInput>({
+  const [formData, setFormData] = useState<TripFormData>({
     name: '',
     description: '',
     startDate: '',
     endDate: '',
-    location: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +52,6 @@ export const TripsPage: FC = () => {
       description: '',
       startDate: '',
       endDate: '',
-      location: '',
     });
     setFormErrors({});
   };
@@ -75,7 +83,13 @@ export const TripsPage: FC = () => {
 
     setIsSubmitting(true);
     try {
-      const newTrip = await createTrip(formData);
+      // Convert string dates to Date objects for the DTO
+      const newTrip = await createTrip({
+        name: formData.name,
+        description: formData.description || undefined,
+        startDate: new Date(formData.startDate),
+        endDate: new Date(formData.endDate),
+      });
       createModal.close();
       resetForm();
       navigate(`/trips/${newTrip.id}`);
@@ -117,7 +131,7 @@ export const TripsPage: FC = () => {
       return (
         <ErrorDisplay
           title="Error al cargar viajes"
-          message={error}
+          message={error.message}
           onRetry={clearError}
         />
       );
@@ -143,7 +157,6 @@ export const TripsPage: FC = () => {
           <Card
             key={trip.id}
             title={trip.name}
-            subtitle={trip.location}
             className={styles.tripCard}
             headerActions={
               <button
@@ -185,14 +198,6 @@ export const TripsPage: FC = () => {
                       year: 'numeric',
                     })}
                   </span>
-                </div>
-                <div className={styles.tripParticipants}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-                  </svg>
-                  <span>{trip.participantCount} participantes</span>
                 </div>
               </div>
               <Link to={`/trips/${trip.id}`} className={styles.viewLink}>
@@ -245,13 +250,6 @@ export const TripsPage: FC = () => {
               placeholder="Describe brevemente el viaje"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              fullWidth
-            />
-            <Input
-              label="Ubicacion"
-              placeholder="Ej: Costa Brava"
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               fullWidth
             />
             <div className={styles.dateRow}>

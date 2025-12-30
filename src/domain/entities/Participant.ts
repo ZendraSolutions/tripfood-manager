@@ -19,9 +19,9 @@ export interface IParticipantCreateDTO {
   /** Name of the participant */
   readonly name: string;
   /** Optional email address */
-  readonly email?: string;
+  readonly email?: string | undefined;
   /** Optional notes about the participant */
-  readonly notes?: string;
+  readonly notes?: string | undefined;
 }
 
 /**
@@ -29,11 +29,11 @@ export interface IParticipantCreateDTO {
  */
 export interface IParticipantUpdateDTO {
   /** New name for the participant */
-  readonly name?: string;
+  readonly name?: string | undefined;
   /** New email for the participant (null to remove) */
-  readonly email?: string | null;
+  readonly email?: string | null | undefined;
   /** New notes for the participant (null to remove) */
-  readonly notes?: string | null;
+  readonly notes?: string | null | undefined;
 }
 
 /**
@@ -47,13 +47,13 @@ export interface IParticipantProps {
   /** Name of the participant */
   readonly name: string;
   /** Optional email address */
-  readonly email?: string;
+  readonly email?: string | undefined;
   /** Optional notes about the participant */
-  readonly notes?: string;
+  readonly notes?: string | undefined;
   /** Timestamp when the participant was created */
   readonly createdAt: Date;
   /** Timestamp when the participant was last updated */
-  readonly updatedAt?: Date;
+  readonly updatedAt?: Date | undefined;
 }
 
 /**
@@ -119,13 +119,13 @@ export class Participant implements IParticipantProps {
    * Optional email address of the participant.
    * @readonly
    */
-  public readonly email?: string;
+  public readonly email?: string | undefined;
 
   /**
    * Optional notes about the participant.
    * @readonly
    */
-  public readonly notes?: string;
+  public readonly notes?: string | undefined;
 
   /**
    * Timestamp when the participant was created.
@@ -137,7 +137,7 @@ export class Participant implements IParticipantProps {
    * Timestamp when the participant was last updated.
    * @readonly
    */
-  public readonly updatedAt?: Date;
+  public readonly updatedAt?: Date | undefined;
 
   /**
    * Private constructor to enforce factory method usage.

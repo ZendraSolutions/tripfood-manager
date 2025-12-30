@@ -9,8 +9,8 @@
  * @version 1.0.0
  */
 
-import type { IParticipantRepository } from '@domain/interfaces/repositories/IParticipantRepository';
-import type { Participant } from '@domain/entities/Participant';
+import type { IParticipantRepository, IParticipantQueryFilters } from '@domain/interfaces/repositories/IParticipantRepository';
+import type { Participant, IParticipantUpdateDTO } from '@domain/entities/Participant';
 import { TripFoodDatabase, type ParticipantRecord } from './database';
 import { ParticipantMapper, type ParticipantProps } from '../mappers/ParticipantMapper';
 import { DatabaseError } from '../../errors/DatabaseError';
@@ -287,39 +287,23 @@ export class IndexedDBParticipantRepository implements IParticipantRepository {
   }
 
   /**
-   * Actualiza campos específicos de un participante.
+   * Actualiza un participante existente.
    *
-   * @param id - ID del participante a actualizar
-   * @param updates - Objeto con los campos a actualizar
-   * @returns Promise con el Participant actualizado o null si no existe
+   * @param entity - Entidad Participant con los datos actualizados
+   * @returns Promise con el Participant actualizado
    * @throws {DatabaseError} Si ocurre un error de base de datos
    */
-  public async update(
-    id: string,
-    updates: Partial<Pick<ParticipantRecord, 'name' | 'email' | 'notes'>>
-  ): Promise<Participant | null> {
+  public async update(entity: Participant): Promise<Participant> {
     try {
-      const existingRecord = await this.db.participants.get(id);
-
-      if (!existingRecord) {
-        return null;
-      }
-
-      const updatedRecord: ParticipantRecord = {
-        ...existingRecord,
-        ...updates,
-      };
-
-      await this.db.participants.put(updatedRecord);
-
-      const props = ParticipantMapper.toDomainProps(updatedRecord);
-      return this.participantFactory(props);
+      const record = ParticipantMapper.toRecord(entity);
+      await this.db.participants.put(record);
+      return entity;
     } catch (error) {
       throw new DatabaseError(
         'update',
         'participants',
         error instanceof Error ? error : undefined,
-        id
+        entity.id
       );
     }
   }
@@ -389,6 +373,131 @@ export class IndexedDBParticipantRepository implements IParticipantRepository {
       return await this.db.participants.count();
     } catch (error) {
       throw new DatabaseError('count', 'participants', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Actualiza parcialmente un participante con los campos proporcionados.
+   *
+   * @param id - ID del participante a actualizar
+   * @param updates - Campos a actualizar
+   * @returns Promise con el participante actualizado o null si no existe
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async partialUpdate(id: string, updates: IParticipantUpdateDTO): Promise<Participant | null> {
+    try {
+      const existingRecord = await this.db.participants.get(id);
+
+      if (!existingRecord) {
+        return null;
+      }
+
+      const updatedRecord: ParticipantRecord = {
+        ...existingRecord,
+        ...(updates.name !== undefined && { name: updates.name }),
+        ...(updates.email !== undefined && { email: updates.email === null ? undefined : updates.email }),
+        ...(updates.notes !== undefined && { notes: updates.notes === null ? undefined : updates.notes }),
+      };
+
+      await this.db.participants.put(updatedRecord);
+
+      const props = ParticipantMapper.toDomainProps(updatedRecord);
+      return this.participantFactory(props);
+    } catch (error) {
+      throw new DatabaseError(
+        'update',
+        'participants',
+        error instanceof Error ? error : undefined,
+        id
+      );
+    }
+  }
+
+  /**
+   * Verifica si existe un participante con el nombre dado en un viaje.
+   *
+   * @param tripId - ID del viaje
+   * @param name - Nombre a verificar
+   * @param excludeId - ID opcional a excluir de la búsqueda
+   * @returns Promise que resuelve a true si existe
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async existsInTrip(tripId: string, name: string, excludeId?: string): Promise<boolean> {
+    try {
+      const normalizedName = name.toLowerCase().trim();
+      const record = await this.db.participants
+        .where('tripId')
+        .equals(tripId)
+        .filter((participant) => {
+          if (excludeId && participant.id === excludeId) {
+            return false;
+          }
+          return participant.name.toLowerCase().trim() === normalizedName;
+        })
+        .first();
+
+      return record !== undefined;
+    } catch (error) {
+      throw new DatabaseError('find', 'participants', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Encuentra participantes usando filtros complejos.
+   *
+   * @param filters - Criterios de filtrado
+   * @returns Promise con array de participantes que coinciden
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findWithFilters(filters: IParticipantQueryFilters): Promise<Participant[]> {
+    try {
+      let records = await this.db.participants.toArray();
+
+      // Filtrar por tripId
+      if (filters.tripId) {
+        records = records.filter((p) => p.tripId === filters.tripId);
+      }
+
+      // Filtrar por nombre
+      if (filters.name) {
+        const searchTerm = filters.name.toLowerCase();
+        records = records.filter((p) => p.name.toLowerCase().includes(searchTerm));
+      }
+
+      // Filtrar por email
+      if (filters.email) {
+        const searchTerm = filters.email.toLowerCase();
+        records = records.filter((p) => p.email?.toLowerCase().includes(searchTerm));
+      }
+
+      const propsList = ParticipantMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.participantFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'participants', error instanceof Error ? error : undefined);
+    }
+  }
+
+  /**
+   * Obtiene participantes de un viaje ordenados por nombre.
+   *
+   * @param tripId - ID del viaje
+   * @returns Promise con array de participantes ordenados por nombre
+   * @throws {DatabaseError} Si ocurre un error de base de datos
+   */
+  public async findByTripIdOrderedByName(tripId: string): Promise<Participant[]> {
+    try {
+      const records = await this.db.participants
+        .where('tripId')
+        .equals(tripId)
+        .toArray();
+
+      // Ordenar por nombre
+      records.sort((a, b) => a.name.localeCompare(b.name));
+
+      const propsList = ParticipantMapper.toDomainPropsList(records);
+      return propsList.map((props) => this.participantFactory(props));
+    } catch (error) {
+      throw new DatabaseError('find', 'participants', error instanceof Error ? error : undefined);
     }
   }
 }

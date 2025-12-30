@@ -1,104 +1,60 @@
 /**
- * ShoppingListPage - Final shopping list with assignments and CSV export
+ * ShoppingListPage - Planning shopping list with CSV export
+ * Shows products to be purchased for the trip based on consumption planning
  */
-import { useCallback, type FC } from 'react';
+import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { MainLayout } from '../../components/layout';
 import { Card, Button, Loading, EmptyState, ErrorDisplay } from '../../components/common';
-import { useParticipants, useProducts, type Product } from '../../hooks';
+import { useShoppingList, useParticipants } from '../../hooks';
 import styles from './ShoppingListPage.module.css';
-
-/**
- * Generates CSV content from products data
- */
-function generateCSVContent(products: Product[], categoryLabels: Record<string, string>): string {
-  const headers = ['Producto', 'Categoria', 'Cantidad', 'Unidad', 'Precio Unitario', 'Precio Total', 'Estado', 'Notas'];
-  const rows = products.map((product) => [
-    product.name,
-    categoryLabels[product.category] || product.category,
-    product.quantity.toString(),
-    product.unit,
-    product.estimatedPrice ? product.estimatedPrice.toFixed(2) : '',
-    product.estimatedPrice ? (product.estimatedPrice * product.quantity).toFixed(2) : '',
-    product.isPurchased ? 'Comprado' : 'Pendiente',
-    product.notes || '',
-  ]);
-
-  const csvContent = [
-    headers.join(';'),
-    ...rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(';')),
-  ].join('\n');
-
-  return csvContent;
-}
-
-/**
- * Downloads content as a file
- */
-function downloadFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob(['\uFEFF' + content], { type: mimeType }); // BOM for Excel
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
 
 export const ShoppingListPage: FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
-  const { participants, isLoading: participantsLoading, error: participantsError } = useParticipants(tripId || '');
-  const { products, isLoading: productsLoading, error: productsError, togglePurchased } = useProducts(tripId || '');
+  const {
+    shoppingList,
+    isLoading: shoppingLoading,
+    error: shoppingError,
+    downloadCSV
+  } = useShoppingList(tripId || '');
+  const { participants, isLoading: participantsLoading } = useParticipants(tripId || '');
 
-  const isLoading = participantsLoading || productsLoading;
-  const error = participantsError || productsError;
+  const isLoading = shoppingLoading || participantsLoading;
+  const error = shoppingError;
 
-  // Group products by category
-  const productsByCategory = products.reduce<Record<string, typeof products>>((acc, product) => {
-    const category = product.category;
+  // Group items by category
+  const itemsByCategory = shoppingList?.items.reduce<Record<string, typeof shoppingList.items>>((acc, item) => {
+    const category = item.product.category;
     if (!acc[category]) {
       acc[category] = [];
     }
-    acc[category].push(product);
+    acc[category].push(item);
     return acc;
-  }, {});
+  }, {}) || {};
 
   const categoryLabels: Record<string, string> = {
-    bebida: 'Bebidas',
-    comida: 'Comida',
-    snack: 'Snacks',
-    otro: 'Otros',
+    food: 'Comida',
+    beverage: 'Bebidas',
+    other: 'Otros',
   };
 
-  const categoryOrder = ['bebida', 'comida', 'snack', 'otro'];
+  const categoryOrder = ['food', 'beverage', 'other'];
 
   /**
    * Handle CSV export
    */
-  const handleExportCSV = useCallback(() => {
-    const csvContent = generateCSVContent(products, categoryLabels);
-    const date = new Date().toISOString().split('T')[0];
-    const filename = `lista-compras-${date}.csv`;
-    downloadFile(csvContent, filename, 'text/csv;charset=utf-8');
-  }, [products]);
+  const handleExportCSV = async () => {
+    try {
+      const date = new Date().toISOString().split('T')[0];
+      await downloadCSV(`lista-compras-${date}.csv`);
+    } catch (err) {
+      // Error is handled by the hook
+    }
+  };
 
   // Calculate totals
-  const purchasedCount = products.filter((p) => p.isPurchased).length;
-  const pendingCount = products.length - purchasedCount;
-  const estimatedTotal = products.reduce((sum, p) => sum + (p.estimatedPrice ?? 0) * p.quantity, 0);
-  const purchasedTotal = products
-    .filter((p) => p.isPurchased)
-    .reduce((sum, p) => sum + (p.estimatedPrice ?? 0) * p.quantity, 0);
-  const completionPercentage = products.length > 0
-    ? Math.round((purchasedCount / products.length) * 100)
-    : 0;
-
-  const activeParticipants = participants.filter((p) => p.isActive);
-  const costPerPerson = activeParticipants.length > 0
-    ? estimatedTotal / activeParticipants.length
-    : 0;
+  const totalItems = shoppingList?.items.length || 0;
+  const participantCount = participants.length;
 
   if (isLoading) {
     return (
@@ -113,22 +69,22 @@ export const ShoppingListPage: FC = () => {
       <MainLayout showSidebar tripName="Viaje">
         <ErrorDisplay
           title="Error al cargar datos"
-          message={error}
+          message={error.message}
         />
       </MainLayout>
     );
   }
 
-  if (products.length === 0) {
+  if (!shoppingList || shoppingList.items.length === 0) {
     return (
       <MainLayout showSidebar tripName="Viaje">
         <div className={styles.page}>
           <div className={styles.header}>
-            <h1 className={styles.title}>Lista de Compras</h1>
+            <h1 className={styles.title}>Lista de Compras Planificada</h1>
           </div>
           <EmptyState
-            title="No hay productos"
-            description="Anade productos al catalogo para generar la lista de compras"
+            title="No hay productos planificados"
+            description="Registra consumos planificados para generar la lista de compras"
             icon={
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <circle cx="9" cy="21" r="1" />
@@ -147,9 +103,9 @@ export const ShoppingListPage: FC = () => {
       <div className={styles.page}>
         <div className={styles.header}>
           <div>
-            <h1 className={styles.title}>Lista de Compras</h1>
+            <h1 className={styles.title}>Lista de Compras Planificada</h1>
             <p className={styles.subtitle}>
-              {pendingCount} productos pendientes de {products.length} totales
+              {totalItems} productos planificados para {participantCount} participantes
             </p>
           </div>
           <div className={styles.headerActions}>
@@ -166,35 +122,24 @@ export const ShoppingListPage: FC = () => {
           </div>
         </div>
 
-        {/* Progress Card */}
+        {/* Summary Card */}
         <Card className={styles.progressCard}>
           <div className={styles.progressContent}>
             <div className={styles.progressHeader}>
-              <span className={styles.progressTitle}>Progreso de compras</span>
-              <span className={styles.progressPercentage}>{completionPercentage}%</span>
-            </div>
-            <div className={styles.progressBar}>
-              <div
-                className={styles.progressFill}
-                style={{ width: `${completionPercentage}%` }}
-              />
+              <span className={styles.progressTitle}>Resumen de planificacion</span>
             </div>
             <div className={styles.progressStats}>
               <div className={styles.progressStat}>
-                <span className={styles.statValue}>{purchasedCount}</span>
-                <span className={styles.statLabel}>Comprados</span>
+                <span className={styles.statValue}>{totalItems}</span>
+                <span className={styles.statLabel}>Productos</span>
               </div>
               <div className={styles.progressStat}>
-                <span className={styles.statValue}>{pendingCount}</span>
-                <span className={styles.statLabel}>Pendientes</span>
+                <span className={styles.statValue}>{participantCount}</span>
+                <span className={styles.statLabel}>Participantes</span>
               </div>
               <div className={styles.progressStat}>
-                <span className={styles.statValue}>{purchasedTotal.toFixed(2)} EUR</span>
-                <span className={styles.statLabel}>Gastado</span>
-              </div>
-              <div className={styles.progressStat}>
-                <span className={styles.statValue}>{estimatedTotal.toFixed(2)} EUR</span>
-                <span className={styles.statLabel}>Total Est.</span>
+                <span className={styles.statValue}>{Object.keys(itemsByCategory).length}</span>
+                <span className={styles.statLabel}>Categorias</span>
               </div>
             </div>
           </div>
@@ -203,48 +148,28 @@ export const ShoppingListPage: FC = () => {
         {/* Shopping Lists by Category */}
         <div className={styles.listsContainer}>
           {categoryOrder.map((category) => {
-            const categoryProducts = productsByCategory[category];
-            if (!categoryProducts || categoryProducts.length === 0) return null;
-
-            const categoryPurchased = categoryProducts.filter((p) => p.isPurchased).length;
+            const categoryItems = itemsByCategory[category];
+            if (!categoryItems || categoryItems.length === 0) return null;
 
             return (
               <Card
                 key={category}
-                title={categoryLabels[category]}
-                subtitle={`${categoryPurchased}/${categoryProducts.length} comprados`}
+                title={categoryLabels[category] || category}
+                subtitle={`${categoryItems.length} productos`}
                 className={styles.categoryCard}
               >
                 <ul className={styles.productList}>
-                  {categoryProducts.map((product) => (
+                  {categoryItems.map((item) => (
                     <li
-                      key={product.id}
-                      className={`${styles.productItem} ${product.isPurchased ? styles.purchased : ''}`}
+                      key={item.product.id}
+                      className={styles.productItem}
                     >
-                      <button
-                        type="button"
-                        className={styles.checkbox}
-                        onClick={() => togglePurchased(product.id)}
-                        aria-label={`Marcar ${product.name} como ${product.isPurchased ? 'pendiente' : 'comprado'}`}
-                        aria-pressed={product.isPurchased}
-                      >
-                        {product.isPurchased && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </button>
                       <div className={styles.productInfo}>
-                        <span className={styles.productName}>{product.name}</span>
+                        <span className={styles.productName}>{item.product.name}</span>
                         <span className={styles.productQuantity}>
-                          {product.quantity} {product.unit}
+                          {item.totalQuantity} {item.unit}
                         </span>
                       </div>
-                      {product.estimatedPrice && (
-                        <span className={styles.productPrice}>
-                          {(product.estimatedPrice * product.quantity).toFixed(2)} EUR
-                        </span>
-                      )}
                     </li>
                   ))}
                 </ul>
@@ -253,28 +178,12 @@ export const ShoppingListPage: FC = () => {
           })}
         </div>
 
-        {/* Cost Split */}
-        <Card title="Reparto de costes" className={styles.costCard}>
-          <div className={styles.costContent}>
-            <div className={styles.costSummary}>
-              <div className={styles.costItem}>
-                <span className={styles.costLabel}>Coste total estimado</span>
-                <span className={styles.costValue}>{estimatedTotal.toFixed(2)} EUR</span>
-              </div>
-              <div className={styles.costItem}>
-                <span className={styles.costLabel}>Participantes activos</span>
-                <span className={styles.costValue}>{activeParticipants.length}</span>
-              </div>
-              <div className={styles.costItem}>
-                <span className={styles.costLabel}>Coste por persona</span>
-                <span className={`${styles.costValue} ${styles.highlight}`}>
-                  {costPerPerson.toFixed(2)} EUR
-                </span>
-              </div>
-            </div>
-            {activeParticipants.length > 0 && (
+        {/* Participants Summary */}
+        {participants.length > 0 && (
+          <Card title="Participantes del viaje" className={styles.costCard}>
+            <div className={styles.costContent}>
               <div className={styles.participantsList}>
-                {activeParticipants.map((participant) => (
+                {participants.map((participant) => (
                   <div key={participant.id} className={styles.participantCost}>
                     <div className={styles.participantInfo}>
                       <div className={styles.avatar}>
@@ -282,15 +191,17 @@ export const ShoppingListPage: FC = () => {
                       </div>
                       <span>{participant.name}</span>
                     </div>
-                    <span className={styles.participantAmount}>
-                      {costPerPerson.toFixed(2)} EUR
-                    </span>
+                    {participant.email && (
+                      <span className={styles.participantAmount}>
+                        {participant.email}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        </Card>
+            </div>
+          </Card>
+        )}
       </div>
     </MainLayout>
   );

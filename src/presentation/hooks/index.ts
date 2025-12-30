@@ -1,42 +1,131 @@
 /**
  * Hooks - Barrel export file
  * Re-exports all custom hooks for easier imports
+ *
+ * @module presentation/hooks
  */
 
-// useModal
-export { useModal } from './useModal';
-export type { UseModalReturn } from './useModal';
+// ============================================================================
+// Modal Hooks
+// ============================================================================
 
-// useTrips
+export { useModal, useModals, useConfirmModal } from './useModal';
+export type { UseModalOptions, UseModalReturn } from './useModal';
+
+// ============================================================================
+// Form Hook
+// ============================================================================
+
+export {
+  useForm,
+  // Validation rules
+  required,
+  minLength,
+  maxLength,
+  email,
+  pattern,
+  min,
+  max,
+  custom,
+} from './useForm';
+export type {
+  ValidationRule,
+  ValidationSchema,
+  FormErrors,
+  TouchedFields,
+  UseFormOptions,
+  UseFormState,
+  UseFormActions,
+  UseFormReturn,
+} from './useForm';
+
+// ============================================================================
+// Data Hooks - Trips
+// ============================================================================
+
 export { useTrips } from './useTrips';
 export type {
-  Trip,
-  CreateTripInput,
-  UpdateTripInput,
   UseTripsState,
   UseTripsActions,
   UseTripsReturn,
+  Trip,
+  ITripCreateDTO,
+  ITripUpdateDTO,
 } from './useTrips';
 
-// useParticipants
+// ============================================================================
+// Data Hooks - Participants
+// ============================================================================
+
 export { useParticipants } from './useParticipants';
 export type {
-  Participant,
-  CreateParticipantInput,
-  UpdateParticipantInput,
   UseParticipantsState,
   UseParticipantsActions,
   UseParticipantsReturn,
+  Participant,
+  IParticipantCreateDTO,
+  IParticipantUpdateDTO,
 } from './useParticipants';
 
-// useProducts
+// ============================================================================
+// Data Hooks - Products
+// ============================================================================
+
 export { useProducts } from './useProducts';
 export type {
-  Product,
-  ProductCategory,
-  CreateProductInput,
-  UpdateProductInput,
+  ProductFilters,
   UseProductsState,
   UseProductsActions,
   UseProductsReturn,
+  Product,
+  IProductCreateDTO,
+  IProductUpdateDTO,
+  ProductCategory,
+  ProductType,
 } from './useProducts';
+
+// ============================================================================
+// Data Hooks - Consumptions
+// ============================================================================
+
+export { useConsumptions } from './useConsumptions';
+export type {
+  CreateConsumptionInput,
+  UseConsumptionsState,
+  UseConsumptionsActions,
+  UseConsumptionsReturn,
+  Consumption,
+  MealType,
+  CreateConsumptionDTO,
+  UpdateConsumptionDTO,
+} from './useConsumptions';
+
+// ============================================================================
+// Data Hooks - Availability
+// ============================================================================
+
+export { useAvailability } from './useAvailability';
+export type {
+  AvailabilityMatrixEntry,
+  UseAvailabilityState,
+  UseAvailabilityActions,
+  UseAvailabilityReturn,
+  Availability,
+  SetAvailabilityDTO,
+} from './useAvailability';
+
+// ============================================================================
+// Data Hooks - Shopping List
+// ============================================================================
+
+export { useShoppingList } from './useShoppingList';
+export type {
+  ExportFormat,
+  UseShoppingListState,
+  UseShoppingListActions,
+  UseShoppingListReturn,
+  ShoppingList,
+  ShoppingListItem,
+  ProductConsumptionSummary,
+  CSVExportResult,
+} from './useShoppingList';

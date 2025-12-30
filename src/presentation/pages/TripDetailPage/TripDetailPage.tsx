@@ -12,19 +12,14 @@ export const TripDetailPage: FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
   const { trips, isLoading: tripsLoading, error: tripsError } = useTrips();
   const { participants, isLoading: participantsLoading } = useParticipants(tripId || '');
-  const { products, isLoading: productsLoading } = useProducts(tripId || '');
+  const { products, isLoading: productsLoading } = useProducts();
 
   const trip = trips.find((t) => t.id === tripId);
   const isLoading = tripsLoading || participantsLoading || productsLoading;
 
-  // Calculate statistics
-  const activeParticipants = participants.filter((p) => p.isActive).length;
-  const purchasedProducts = products.filter((p) => p.isPurchased).length;
-  const pendingProducts = products.length - purchasedProducts;
-  const estimatedTotal = products.reduce((sum, p) => sum + (p.estimatedPrice ?? 0) * p.quantity, 0);
-  const completionPercentage = products.length > 0
-    ? Math.round((purchasedProducts / products.length) * 100)
-    : 0;
+  // Calculate statistics (all participants are active in this domain)
+  const totalParticipants = participants.length;
+  const totalProducts = products.length;
 
   if (isLoading) {
     return (
@@ -39,7 +34,7 @@ export const TripDetailPage: FC = () => {
       <MainLayout showSidebar>
         <ErrorDisplay
           title="Error al cargar el viaje"
-          message={tripsError}
+          message={tripsError.message}
         />
       </MainLayout>
     );
@@ -89,15 +84,6 @@ export const TripDetailPage: FC = () => {
                   year: 'numeric',
                 })}
               </span>
-              {trip.location && (
-                <span className={styles.metaItem}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  {trip.location}
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -114,8 +100,8 @@ export const TripDetailPage: FC = () => {
                 </svg>
               </div>
               <div className={styles.statInfo}>
-                <span className={styles.statValue}>{activeParticipants}</span>
-                <span className={styles.statLabel}>Participantes activos</span>
+                <span className={styles.statValue}>{totalParticipants}</span>
+                <span className={styles.statLabel}>Participantes</span>
               </div>
             </div>
           </Card>
@@ -128,56 +114,18 @@ export const TripDetailPage: FC = () => {
                 </svg>
               </div>
               <div className={styles.statInfo}>
-                <span className={styles.statValue}>{products.length}</span>
-                <span className={styles.statLabel}>Productos totales</span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className={styles.statCard}>
-            <div className={styles.statContent}>
-              <div className={styles.statIcon} style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--color-warning)' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="9" cy="21" r="1" />
-                  <circle cx="20" cy="21" r="1" />
-                  <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
-                </svg>
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>{pendingProducts}</span>
-                <span className={styles.statLabel}>Por comprar</span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className={styles.statCard}>
-            <div className={styles.statContent}>
-              <div className={styles.statIcon} style={{ background: 'var(--color-gray-100)', color: 'var(--color-gray-600)' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="12" y1="1" x2="12" y2="23" />
-                  <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-                </svg>
-              </div>
-              <div className={styles.statInfo}>
-                <span className={styles.statValue}>{estimatedTotal.toFixed(2)}EUR</span>
-                <span className={styles.statLabel}>Coste estimado</span>
+                <span className={styles.statValue}>{totalProducts}</span>
+                <span className={styles.statLabel}>Productos planificados</span>
               </div>
             </div>
           </Card>
         </div>
 
-        {/* Progress */}
-        <Card title="Progreso de compras" className={styles.progressCard}>
+        {/* Trip Info Summary */}
+        <Card title="Resumen del viaje" className={styles.progressCard}>
           <div className={styles.progressContent}>
-            <div className={styles.progressBar}>
-              <div
-                className={styles.progressFill}
-                style={{ width: `${completionPercentage}%` }}
-              />
-            </div>
             <div className={styles.progressInfo}>
-              <span>{purchasedProducts} de {products.length} productos comprados</span>
-              <span className={styles.progressPercentage}>{completionPercentage}%</span>
+              <span>Viaje con {totalParticipants} participantes y {totalProducts} productos para planificar</span>
             </div>
           </div>
         </Card>

@@ -6,21 +6,21 @@ import styles from './Input.module.css';
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   /** Label for the input */
-  label?: string;
+  label?: string | undefined;
   /** Helper text displayed below the input */
-  helperText?: string;
+  helperText?: string | undefined;
   /** Error message (shows error state when present) */
-  error?: string;
+  error?: string | undefined;
   /** Size variant */
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | undefined;
   /** Left icon/addon */
-  leftAddon?: ReactNode;
+  leftAddon?: ReactNode | undefined;
   /** Right icon/addon */
-  rightAddon?: ReactNode;
+  rightAddon?: ReactNode | undefined;
   /** Whether the field is required */
-  required?: boolean;
+  required?: boolean | undefined;
   /** Full width */
-  fullWidth?: boolean;
+  fullWidth?: boolean | undefined;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(({

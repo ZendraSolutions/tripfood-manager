@@ -47,19 +47,19 @@ export class DuplicateError extends DomainError {
    * The field that caused the duplication.
    * @readonly
    */
-  public readonly field?: string;
+  public readonly field?: string | undefined;
 
   /**
    * The value that is duplicated.
    * @readonly
    */
-  public readonly duplicateValue?: unknown;
+  public readonly duplicateValue?: unknown | undefined;
 
   /**
    * Composite key values that caused the duplication.
    * @readonly
    */
-  public readonly compositeKey?: Record<string, unknown>;
+  public readonly compositeKey?: Record<string, unknown> | undefined;
 
   /**
    * Creates a new DuplicateError instance.
@@ -159,6 +159,29 @@ export class DuplicateError extends DomainError {
     value: unknown
   ): DuplicateError {
     return new DuplicateError(entityType, field, value);
+  }
+
+  /**
+   * Creates a DuplicateError for a specific field value.
+   * Alias for forField method.
+   *
+   * @param entityType - The type of entity
+   * @param field - The field name
+   * @param value - The duplicate value
+   * @returns A new DuplicateError instance
+   *
+   * @example
+   * ```typescript
+   * throw DuplicateError.withField('Participant', 'email', 'john@example.com');
+   * // Message: "Participant with email 'john@example.com' already exists"
+   * ```
+   */
+  public static withField(
+    entityType: string,
+    field: string,
+    value: unknown
+  ): DuplicateError {
+    return DuplicateError.forField(entityType, field, value);
   }
 
   /**

@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-export { MealType } from './CreateConsumptionDTO';
+export type { MealType } from './CreateConsumptionDTO';
 export type {
   CreateConsumptionDTO,
   BulkCreateConsumptionDTO,

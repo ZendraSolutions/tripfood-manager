@@ -67,17 +67,17 @@ export interface ProductResponseDTO {
   /**
    * Estimated price per unit.
    */
-  readonly estimatedPrice?: number;
+  readonly estimatedPrice?: number | undefined;
 
   /**
    * Brand preference.
    */
-  readonly brand?: string;
+  readonly brand?: string | undefined;
 
   /**
    * Notes about the product.
    */
-  readonly notes?: string;
+  readonly notes?: string | undefined;
 
   /**
    * Whether the product is essential.

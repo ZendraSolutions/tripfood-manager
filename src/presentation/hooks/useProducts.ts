@@ -14,11 +14,11 @@ import type { ProductCategory, ProductType } from '@domain/types';
  */
 export interface ProductFilters {
   /** Filter by product category */
-  category?: ProductCategory;
+  category?: ProductCategory | undefined;
   /** Filter by product type */
-  type?: ProductType;
+  type?: ProductType | undefined;
   /** Filter by search term (name) */
-  searchTerm?: string;
+  searchTerm?: string | undefined;
 }
 
 /**

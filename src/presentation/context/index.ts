@@ -3,8 +3,18 @@
  * Re-exports all context providers and hooks for easier imports
  */
 
-// ServiceContext (existing)
-export { ServiceProvider, useServices } from './ServiceContext';
+// ServiceContext
+export {
+  ServiceProvider,
+  useServices,
+  useTripService,
+  useParticipantService,
+  useProductService,
+  useConsumptionService,
+  useAvailabilityService,
+  useShoppingService,
+} from './ServiceContext';
+export type { ServiceContainer } from './ServiceContext';
 
 // AppContext
 export { AppProvider, useApp } from './AppContext';

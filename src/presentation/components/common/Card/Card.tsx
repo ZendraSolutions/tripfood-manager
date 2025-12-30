@@ -6,19 +6,19 @@ import styles from './Card.module.css';
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   /** Card title */
-  title?: string;
+  title?: string | undefined;
   /** Card subtitle */
-  subtitle?: string;
+  subtitle?: string | undefined;
   /** Card header actions (buttons, etc.) */
-  headerActions?: ReactNode;
+  headerActions?: ReactNode | undefined;
   /** Card footer content */
-  footer?: ReactNode;
+  footer?: ReactNode | undefined;
   /** Visual variant */
-  variant?: 'default' | 'outlined' | 'elevated';
+  variant?: 'default' | 'outlined' | 'elevated' | undefined;
   /** Padding size */
-  padding?: 'none' | 'sm' | 'md' | 'lg';
+  padding?: 'none' | 'sm' | 'md' | 'lg' | undefined;
   /** Whether the card is interactive (clickable) */
-  interactive?: boolean;
+  interactive?: boolean | undefined;
   /** Children content */
   children: ReactNode;
 }

@@ -42,7 +42,7 @@ export interface TripResponseDTO {
   /**
    * Optional description of the trip.
    */
-  readonly description?: string;
+  readonly description?: string | undefined;
 
   /**
    * Start date of the trip.
