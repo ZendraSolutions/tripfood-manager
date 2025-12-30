@@ -1,0 +1,87 @@
+/* Loading Component Styles */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-8);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 100;
+}
+
+.fullscreen {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 9999;
+}
+
+/* Spinner */
+.spinner {
+  animation: rotate 1.5s linear infinite;
+  color: var(--color-primary-600);
+}
+
+.spinner svg {
+  display: block;
+}
+
+/* Sizes */
+.sm {
+  width: 24px;
+  height: 24px;
+}
+
+.md {
+  width: 40px;
+  height: 40px;
+}
+
+.lg {
+  width: 64px;
+  height: 64px;
+}
+
+/* Track */
+.track {
+  opacity: 0.2;
+}
+
+/* Progress */
+.progress {
+  stroke-dasharray: 63;
+  stroke-dashoffset: 47;
+  animation: dash 1.5s ease-in-out infinite;
+}
+
+/* Message */
+.message {
+  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+/* Animations */
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dashoffset: 63;
+  }
+  50% {
+    stroke-dashoffset: 16;
+  }
+  100% {
+    stroke-dashoffset: 63;
+  }
+}

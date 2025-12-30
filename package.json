@@ -1,0 +1,50 @@
+{
+  "name": "tripfood-manager",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Sistema de gestion de compras de comida y bebida para viajes de grupo",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "type-check": "tsc --noEmit",
+    "deploy": "npm run build && gh-pages -d dist"
+  },
+  "dependencies": {
+    "dexie": "^4.0.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.1.1",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.2",
+    "@typescript-eslint/parser": "^8.18.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "gh-pages": "^6.2.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usuario/tripfood-manager.git"
+  },
+  "keywords": [
+    "trip",
+    "food",
+    "management",
+    "react",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT"
+}

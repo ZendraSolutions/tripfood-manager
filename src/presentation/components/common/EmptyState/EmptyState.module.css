@@ -1,0 +1,99 @@
+/* EmptyState Component Styles */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-8);
+}
+
+/* Sizes */
+.sm {
+  padding: var(--space-4);
+}
+
+.sm .iconWrapper {
+  width: 40px;
+  height: 40px;
+}
+
+.sm .iconWrapper svg {
+  width: 24px;
+  height: 24px;
+}
+
+.sm .title {
+  font-size: var(--font-size-base);
+}
+
+.sm .description {
+  font-size: var(--font-size-sm);
+}
+
+.md {
+  padding: var(--space-8);
+}
+
+.md .iconWrapper {
+  width: 64px;
+  height: 64px;
+}
+
+.md .iconWrapper svg {
+  width: 40px;
+  height: 40px;
+}
+
+.lg {
+  padding: var(--space-12);
+}
+
+.lg .iconWrapper {
+  width: 80px;
+  height: 80px;
+}
+
+.lg .iconWrapper svg {
+  width: 48px;
+  height: 48px;
+}
+
+.lg .title {
+  font-size: var(--font-size-2xl);
+}
+
+/* Icon */
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: var(--color-gray-100);
+  color: var(--color-gray-400);
+  margin-bottom: var(--space-4);
+}
+
+/* Title */
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-gray-900);
+  margin: 0 0 var(--space-2) 0;
+}
+
+/* Description */
+.description {
+  font-size: var(--font-size-base);
+  color: var(--color-gray-500);
+  margin: 0;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* Action */
+.action {
+  margin-top: var(--space-6);
+}

@@ -1,0 +1,83 @@
+{
+  "project": {
+    "name": "TripFood Manager",
+    "version": "1.0.0-mvp",
+    "type": "web-application",
+    "value": "$10,000 USD",
+    "quality_standard": "enterprise"
+  },
+  "orchestration": {
+    "mode": "multi-agent",
+    "primary_role": "orchestrator",
+    "agents": {
+      "ARCH-001": {
+        "name": "Software Architect",
+        "level": "senior",
+        "responsibilities": ["architecture", "patterns", "technical-decisions"]
+      },
+      "DOM-001": {
+        "name": "Domain Specialist",
+        "level": "senior",
+        "responsibilities": ["entities", "interfaces", "business-rules"]
+      },
+      "INFRA-001": {
+        "name": "Infrastructure Engineer",
+        "level": "senior",
+        "responsibilities": ["repositories", "persistence", "adapters"]
+      },
+      "UI-001": {
+        "name": "Frontend Engineer",
+        "level": "senior",
+        "responsibilities": ["components", "hooks", "context", "pages"]
+      },
+      "UX-001": {
+        "name": "UX/UI Specialist",
+        "level": "senior",
+        "responsibilities": ["design", "user-experience", "accessibility"]
+      },
+      "QA-001": {
+        "name": "Quality Engineer",
+        "level": "senior",
+        "responsibilities": ["testing", "validation", "code-review"]
+      },
+      "DOC-001": {
+        "name": "Technical Writer",
+        "level": "senior",
+        "responsibilities": ["documentation", "api-docs", "guides"]
+      }
+    }
+  },
+  "standards": {
+    "language": "typescript",
+    "strict_mode": true,
+    "no_any": true,
+    "jsdoc_required": true,
+    "naming": {
+      "interfaces": "IPrefix",
+      "types": "PascalCase",
+      "classes": "PascalCase",
+      "functions": "camelCase",
+      "constants": "UPPER_SNAKE_CASE",
+      "files": "kebab-case"
+    },
+    "architecture": {
+      "pattern": "hexagonal-adapted",
+      "layers": ["domain", "application", "infrastructure", "presentation"]
+    },
+    "principles": ["SOLID", "DRY", "KISS", "YAGNI"]
+  },
+  "paths": {
+    "docs": "docs/",
+    "src": "src/",
+    "tests": "tests/",
+    "domain": "src/domain/",
+    "application": "src/application/",
+    "infrastructure": "src/infrastructure/",
+    "presentation": "src/presentation/"
+  },
+  "deployment": {
+    "target": "github-pages",
+    "persistence": "indexeddb",
+    "bundler": "vite"
+  }
+}

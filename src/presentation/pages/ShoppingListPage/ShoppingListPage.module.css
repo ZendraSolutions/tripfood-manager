@@ -1,0 +1,303 @@
+/* ShoppingListPage Styles */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+  margin: var(--space-1) 0 0 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* Progress Card */
+.progressCard {
+  padding: var(--space-4) !important;
+}
+
+.progressContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.progressTitle {
+  font-weight: 600;
+  color: var(--color-gray-700);
+}
+
+.progressPercentage {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary-600);
+}
+
+.progressBar {
+  height: 8px;
+  background: var(--color-gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-primary-600);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-normal);
+}
+
+.progressStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+.progressStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.statValue {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-gray-900);
+}
+
+.statLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+}
+
+/* Lists Container */
+.listsContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-4);
+}
+
+.categoryCard {
+  height: fit-content;
+}
+
+/* Product List */
+.productList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.productItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-gray-100);
+  transition: all var(--transition-fast);
+}
+
+.productItem:last-child {
+  border-bottom: none;
+}
+
+.productItem.purchased {
+  opacity: 0.6;
+}
+
+.productItem.purchased .productName {
+  text-decoration: line-through;
+  color: var(--color-gray-500);
+}
+
+/* Checkbox */
+.checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  background: white;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.checkbox:hover {
+  border-color: var(--color-primary-500);
+}
+
+.checkbox:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+.productItem.purchased .checkbox {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+/* Product Info */
+.productInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.productName {
+  font-weight: 500;
+  color: var(--color-gray-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.productQuantity {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+}
+
+.productPrice {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-gray-700);
+  flex-shrink: 0;
+}
+
+/* Cost Card */
+.costCard {
+  padding: var(--space-4) !important;
+}
+
+.costContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.costSummary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.costItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-1);
+}
+
+.costLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+}
+
+.costValue {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-gray-900);
+}
+
+.costValue.highlight {
+  color: var(--color-primary-600);
+}
+
+/* Participants List */
+.participantsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.participantCost {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
+}
+
+.participantInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-full);
+}
+
+.participantAmount {
+  font-weight: 600;
+  color: var(--color-gray-700);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    justify-content: flex-end;
+  }
+
+  .progressStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .listsContainer {
+    grid-template-columns: 1fr;
+  }
+
+  .costSummary {
+    grid-template-columns: 1fr;
+  }
+}
